@@ -1,3 +1,7 @@
+import re
+
+from PyQt6.QtCore import QRegularExpression
+from PyQt6.QtGui import QRegularExpressionValidator
 from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
 from services.auth_service import AuthService
@@ -57,6 +61,12 @@ class SettingsPage(QWidget):
             self.shift_start_input.setPlaceholderText("08:00")
             self.shift_end_input = QLineEdit(shift_card)
             self.shift_end_input.setPlaceholderText("17:00")
+            time_pattern = QRegularExpression(r"^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$")
+            time_validator = QRegularExpressionValidator(time_pattern, self)
+            self.shift_start_input.setValidator(time_validator)
+            self.shift_end_input.setValidator(time_validator)
+            self.shift_start_input.setMaxLength(8)
+            self.shift_end_input.setMaxLength(8)
             self.save_shift_btn = QPushButton("SAVE SHIFT SCHEDULE", shift_card)
             self.save_shift_btn.clicked.connect(self.save_shift_schedule)
             shift_grid.addWidget(QLabel("Shift Start", shift_card), 2, 0)
@@ -74,9 +84,11 @@ class SettingsPage(QWidget):
 
             self.new_username = QLineEdit(users_card)
             self.new_username.setPlaceholderText("New username")
+            self.new_username.setMaxLength(50)
             self.new_password = QLineEdit(users_card)
             self.new_password.setEchoMode(QLineEdit.EchoMode.Password)
             self.new_password.setPlaceholderText("Temporary password")
+            self.new_password.setMaxLength(128)
             self.account_type_menu = QComboBox(users_card)
             self.account_type_menu.addItems(["Employee", "Admin"])
             self.create_user_button = QPushButton("CREATE ACCOUNT", users_card)
@@ -116,6 +128,7 @@ class SettingsPage(QWidget):
             self.reset_password_input = QLineEdit(accounts_table_card)
             self.reset_password_input.setPlaceholderText("New password for selected user")
             self.reset_password_input.setEchoMode(QLineEdit.EchoMode.Password)
+            self.reset_password_input.setMaxLength(128)
             self.reset_password_btn = QPushButton("RESET PASSWORD", accounts_table_card)
             self.reset_password_btn.clicked.connect(self.reset_selected_account_password)
             self.refresh_accounts_btn = QPushButton("REFRESH", accounts_table_card)
@@ -156,8 +169,12 @@ class SettingsPage(QWidget):
         if not self._is_admin():
             QMessageBox.critical(self, "Permission Denied", "Only admin can create accounts.")
             return
-        username = self.new_username.text().strip()
-        password = self.new_password.text()
+        try:
+            username = self._validate_username(self.new_username.text())
+            password = self._validate_password(self.new_password.text(), "Password")
+        except ValueError as exc:
+            QMessageBox.warning(self, "Validation", str(exc))
+            return
         account_type = self.account_type_menu.currentText().strip().lower()
         try:
             self.auth_service.create_account(self.current_user, username, password, account_type)
@@ -227,9 +244,10 @@ class SettingsPage(QWidget):
         if target_user_id is None:
             QMessageBox.warning(self, "Selection Required", "Select an account from the table.")
             return
-        new_password = self.reset_password_input.text()
-        if not new_password:
-            QMessageBox.warning(self, "Validation", "Enter a new password first.")
+        try:
+            new_password = self._validate_password(self.reset_password_input.text(), "New password")
+        except ValueError as exc:
+            QMessageBox.warning(self, "Validation", str(exc))
             return
 
         try:
@@ -243,10 +261,54 @@ class SettingsPage(QWidget):
         if not self._is_admin():
             QMessageBox.critical(self, "Permission Denied", "Only admin can set shift schedule.")
             return
-        start = self.shift_start_input.text().strip()
-        end = self.shift_end_input.text().strip()
         try:
+            start = self._normalize_shift_time(self.shift_start_input.text())
+            end = self._normalize_shift_time(self.shift_end_input.text())
+            if start == end:
+                raise ValueError("Shift start and end cannot be the same.")
+            if start > end:
+                raise ValueError("Shift end must be later than shift start.")
             self.settings_service.set_shift_schedule(start, end)
             QMessageBox.information(self, "Shift Saved", "Shift schedule updated successfully.")
         except Exception as exc:
             QMessageBox.critical(self, "Shift Schedule Error", str(exc))
+
+    def _validate_username(self, username: str) -> str:
+        clean = (username or "").strip()
+        if not clean:
+            raise ValueError("Username is required.")
+        if len(clean) < 3:
+            raise ValueError("Username must be at least 3 characters.")
+        if len(clean) > 50:
+            raise ValueError("Username must be 50 characters or fewer.")
+        if re.search(r"\s", clean):
+            raise ValueError("Username cannot contain spaces.")
+        if not re.match(r"^[A-Za-z0-9._-]+$", clean):
+            raise ValueError("Username can only use letters, numbers, dot, underscore, and dash.")
+        return clean
+
+    def _validate_password(self, password: str, label: str) -> str:
+        value = password or ""
+        if not value.strip():
+            raise ValueError(f"{label} is required.")
+        if len(value) < 6:
+            raise ValueError(f"{label} must be at least 6 characters.")
+        if len(value) > 128:
+            raise ValueError(f"{label} must be 128 characters or fewer.")
+        return value
+
+    def _normalize_shift_time(self, value: str) -> str:
+        text = (value or "").strip()
+        if not text:
+            raise ValueError("Shift time is required.")
+        if re.match(r"^\d{2}:\d{2}$", text):
+            text = f"{text}:00"
+        elif not re.match(r"^\d{2}:\d{2}:\d{2}$", text):
+            raise ValueError("Shift time must be HH:MM or HH:MM:SS.")
+        try:
+            h, m, s = [int(part) for part in text.split(":")]
+        except Exception as exc:
+            raise ValueError("Shift time must be a valid 24-hour time.") from exc
+        if h > 23 or m > 59 or s > 59:
+            raise ValueError("Shift time must be a valid 24-hour time.")
+        return text

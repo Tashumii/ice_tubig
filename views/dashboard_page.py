@@ -1,7 +1,7 @@
 from typing import List
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QPen
+from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from models.sale import Sale
@@ -18,38 +18,67 @@ class _MiniChart(QWidget):
         self.setMinimumHeight(220)
 
     def set_points(self, points):
-        self.points = points
+        self.points = points or []
         self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.fillRect(self.rect(), self.palette().window())
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        bg_color = QColor(self.tokens.get('bg_surface', '#151311'))
+        painter.fillRect(self.rect(), bg_color)
+
         if not self.points:
+            painter.setPen(QColor(self.tokens.get('text_muted', '#8A8177')))
             painter.drawText(20, self.height() // 2, "No recent sales data")
             return
-        values = [v for _, v in self.points]
-        max_value = max(max(values), 10.0) * 1.15
-        w = max(self.width() - 72, 1)
-        h = max(self.height() - 56, 1)
-        step = w / max(len(self.points) - 1, 1)
-        pen = QPen()
-        pen.setColor(Qt.GlobalColor.gray)
-        pen.setStyle(Qt.PenStyle.DashLine)
-        painter.setPen(pen)
+
+        values = [float(v or 0) for _, v in self.points]
+        max_value = max(values) if values else 0
+        if max_value <= 0:
+            painter.setPen(QColor(self.tokens.get('text_muted', '#8A8177')))
+            painter.drawText(20, self.height() // 2, "No revenue recorded in the last 30 days")
+            return
+
+        left = 48
+        right = 14
+        top = 18
+        bottom = 28
+        w = max(self.width() - left - right, 1)
+        h = max(self.height() - top - bottom, 1)
+
+        grid_pen = QPen(QColor(self.tokens.get('border', '#2B2621')))
+        grid_pen.setStyle(Qt.PenStyle.DashLine)
+        painter.setPen(grid_pen)
         for i in range(5):
-            y = 20 + (h * i / 4)
-            painter.drawLine(48, int(y), 48 + w, int(y))
-        pen.setStyle(Qt.PenStyle.SolidLine)
-        pen.setWidth(2)
-        pen.setColor(Qt.GlobalColor.red)
-        painter.setPen(pen)
-        coords = []
-        for i, (_, value) in enumerate(self.points):
-            x = 48 + i * step
-            y = 20 + h - (value / max_value) * h
-            coords.append((int(x), int(y)))
-        for i in range(1, len(coords)):
-            painter.drawLine(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1])
+            y = top + (h * i / 4)
+            painter.drawLine(left, int(y), left + w, int(y))
+
+        count = max(len(self.points), 1)
+        gap = max(int(w * 0.01), 2)
+        bar_width = max(int((w - gap * (count - 1)) / count), 3)
+        bar_color = QColor(self.tokens.get('accent_1', '#F28A4B'))
+        painter.setPen(QPen(bar_color))
+        painter.setBrush(bar_color)
+
+        for i, (day, value) in enumerate(self.points):
+            bar_height = int((value / max_value) * (h - 4))
+            x = left + i * (bar_width + gap)
+            y = top + h - bar_height
+            painter.drawRoundedRect(x, y, bar_width, bar_height, 4, 4)
+
+        painter.setPen(QColor(self.tokens.get('text_secondary', '#C8BFB2')))
+        label_step = max(len(self.points) // 6, 1)
+        for i, (day, _value) in enumerate(self.points):
+            if i % label_step != 0 and i != len(self.points) - 1:
+                continue
+            label = day.strftime('%b %d') if hasattr(day, 'strftime') else str(day)
+            text_width = painter.fontMetrics().horizontalAdvance(label)
+            x = left + i * (bar_width + gap) + (bar_width - text_width) / 2
+            painter.drawText(int(x), top + h + 18, label)
+
+        max_label = f"₱ {max_value:,.0f}"
+        painter.drawText(left, top - 4, max_label)
 
 
 class DashboardPage(QWidget):
@@ -144,7 +173,16 @@ class DashboardPage(QWidget):
         chart_card = QFrame(self)
         chart_card.setProperty("card", True)
         chart_layout = QVBoxLayout(chart_card)
-        chart_layout.addWidget(QLabel("7-Day Revenue", chart_card))
+        chart_header = QHBoxLayout()
+        chart_title = QLabel("Total Revenue (30 Days)", chart_card)
+        self.chart_total_label = QLabel("₱ 0.00", chart_card)
+        self.chart_total_label.setStyleSheet(
+            f"font-weight:700; color:{self.tokens['accent_1']};"
+        )
+        chart_header.addWidget(chart_title)
+        chart_header.addStretch()
+        chart_header.addWidget(self.chart_total_label)
+        chart_layout.addLayout(chart_header)
         self.chart_canvas = _MiniChart(self.tokens, chart_card)
         chart_layout.addWidget(self.chart_canvas)
         root.addWidget(chart_card)
@@ -219,7 +257,7 @@ class DashboardPage(QWidget):
         if not self._is_admin():
             username = getattr(self.current_user, "username", "")
             sales_history = [sale for sale in sales_history if sale.sold_by_username == username]
-        self._draw_chart(sales_history)
+        self._draw_chart(sales_history, 30)
         self._refresh_data_tables(sales_history)
 
     def _fmt(self, amount: float) -> str:
@@ -239,8 +277,10 @@ class DashboardPage(QWidget):
 
     # ── Chart ─────────────────────────────────────────────────────────────────
 
-    def _draw_chart(self, sales: List[Sale]):
-        points = self._aggregate_weekly_sales(sales)
+    def _draw_chart(self, sales: List[Sale], days: int = 30):
+        points = self._aggregate_daily_sales(sales, days)
+        total = sum(value for _, value in points)
+        self.chart_total_label.setText(self._fmt(total))
         self.chart_canvas.set_points(points)
 
     def _refresh_data_tables(self, sales: List[Sale]):
@@ -267,11 +307,12 @@ class DashboardPage(QWidget):
             })
         self.stock_snapshot_table.insert_rows(stock_rows)
 
-    def _aggregate_weekly_sales(self, sales: List[Sale]):
+    def _aggregate_daily_sales(self, sales: List[Sale], days: int = 30):
         from datetime import datetime, timedelta
-        now    = datetime.now()
+        now = datetime.now()
         totals = {}
-        for offset in range(6, -1, -1):
+        days = max(int(days), 1)
+        for offset in range(days - 1, -1, -1):
             totals[(now - timedelta(days=offset)).date()] = 0.0
         for sale in sales:
             if sale.sold_at.date() in totals:

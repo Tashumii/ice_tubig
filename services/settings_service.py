@@ -1,3 +1,5 @@
+import re
+
 from database import DatabaseManager, DatabaseError
 
 class SettingsService:
@@ -22,23 +24,30 @@ class SettingsService:
         }
 
     def set_shift_schedule(self, shift_start_time: str, shift_end_time: str) -> None:
-        start = (shift_start_time or "").strip()
-        end = (shift_end_time or "").strip()
-        if len(start) == 5:
-            start = f"{start}:00"
-        if len(end) == 5:
-            end = f"{end}:00"
-
-        def _valid_hhmmss(value: str) -> bool:
-            parts = value.split(":")
-            if len(parts) != 3:
-                return False
-            try:
-                h, m, s = [int(x) for x in parts]
-                return 0 <= h <= 23 and 0 <= m <= 59 and 0 <= s <= 59
-            except Exception:
-                return False
-
-        if not _valid_hhmmss(start) or not _valid_hhmmss(end):
-            raise DatabaseError("Shift time must be HH:MM or HH:MM:SS format.")
+        start = self._normalize_shift_time(shift_start_time, "Shift start")
+        end = self._normalize_shift_time(shift_end_time, "Shift end")
+        if start == end:
+            raise DatabaseError("Shift start and end cannot be the same.")
+        if start > end:
+            raise DatabaseError("Shift end must be later than shift start.")
         self._db.update_shift_schedule(start, end)
+
+    def _normalize_shift_time(self, value: str, label: str) -> str:
+        text = (value or "").strip()
+        if not text:
+            raise DatabaseError(f"{label} time is required.")
+        if re.match(r"^\d{2}:\d{2}$", text):
+            text = f"{text}:00"
+        elif not re.match(r"^\d{2}:\d{2}:\d{2}$", text):
+            raise DatabaseError("Shift time must be HH:MM or HH:MM:SS format.")
+
+        parts = text.split(":")
+        if len(parts) != 3:
+            raise DatabaseError("Shift time must be HH:MM or HH:MM:SS format.")
+        try:
+            h, m, s = [int(x) for x in parts]
+        except Exception as exc:
+            raise DatabaseError("Shift time must be a valid 24-hour time.") from exc
+        if not (0 <= h <= 23 and 0 <= m <= 59 and 0 <= s <= 59):
+            raise DatabaseError("Shift time must be a valid 24-hour time.")
+        return text

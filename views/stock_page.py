@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QDoubleValidator, QIntValidator
 from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
 from services.inventory_service import InventoryService
@@ -50,6 +51,17 @@ class StockPage(QWidget):
         self.weight_entry = QLineEdit(form_card); self.weight_entry.setPlaceholderText('Weight kg')
         self.price_entry = QLineEdit(form_card); self.price_entry.setPlaceholderText('Price')
         self.freeze_entry = QLineEdit(form_card); self.freeze_entry.setPlaceholderText('Freeze hrs')
+        self.quantity_entry.setValidator(QIntValidator(1, 10000, self))
+        self.quantity_entry.setMaxLength(5)
+        self.product_entry.setMaxLength(80)
+        weight_validator = QDoubleValidator(0.01, 999.99, 2, self)
+        weight_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+        self.weight_entry.setValidator(weight_validator)
+        price_validator = QDoubleValidator(0.0, 99999999.99, 2, self)
+        price_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+        self.price_entry.setValidator(price_validator)
+        self.freeze_entry.setValidator(QIntValidator(0, 8760, self))
+        self.freeze_entry.setMaxLength(4)
         for col, entry in enumerate([self.quantity_entry, self.product_entry, self.weight_entry, self.price_entry, self.freeze_entry]):
             form_layout.addWidget(entry, 1, col)
         freeze_btn = QPushButton('Freeze', form_card)
@@ -93,41 +105,57 @@ class StockPage(QWidget):
         parent.addWidget(frame, 0, col)
         return value_label
 
-    def _parse_int(self, value, default=0):
+    def _parse_int(self, value: str, field: str) -> int:
+        text = (value or '').strip()
+        if not text:
+            raise ValueError(f'{field} is required.')
         try:
-            return int(value)
-        except Exception:
-            return default
+            return int(text)
+        except Exception as exc:
+            raise ValueError(f'{field} must be a whole number.') from exc
 
-    def _parse_float(self, value, default=0.0):
+    def _parse_float(self, value: str, field: str) -> float:
+        text = (value or '').strip()
+        if not text:
+            raise ValueError(f'{field} is required.')
         try:
-            return float(value)
-        except Exception:
-            return default
+            return float(text)
+        except Exception as exc:
+            raise ValueError(f'{field} must be a number.') from exc
 
     # ── Actions ──────────────────────────────────────────────────────────────
 
     def _add_stock(self, instant: bool):
         try:
-            quantity = self._parse_int((self.quantity_entry.text() or '').strip(), -1)
+            quantity = self._parse_int(self.quantity_entry.text(), 'Quantity')
             if quantity < 1:
-                raise ValueError('Quantity must be a whole number greater than 0.')
+                raise ValueError('Quantity must be at least 1.')
+            if quantity > 10000:
+                raise ValueError('Quantity is too large (max 10,000).')
 
-            product_name = self.product_entry.text().strip() or 'Ice'
+            product_name = (self.product_entry.text() or '').strip() or 'Ice'
+            if len(product_name) > 80:
+                raise ValueError('Product name must be 80 characters or fewer.')
 
-            kg = self._parse_float((self.weight_entry.text() or '').strip(), -1.0)
+            kg = self._parse_float(self.weight_entry.text(), 'Weight (kg)')
             if kg <= 0:
                 raise ValueError('Weight must be a positive number.')
+            if kg > 999.99:
+                raise ValueError('Weight must be 999.99 kg or less.')
 
-            price = self._parse_float((self.price_entry.text() or '').strip(), -1.0)
+            price = self._parse_float(self.price_entry.text(), 'Price')
             if price < 0:
                 raise ValueError('Price cannot be negative.')
+            if price > 99999999.99:
+                raise ValueError('Price is too large.')
 
             freeze_hours = 0
             if not instant:
-                freeze_hours = self._parse_int((self.freeze_entry.text() or '').strip(), -1)
+                freeze_hours = self._parse_int(self.freeze_entry.text(), 'Freeze duration (hours)')
                 if freeze_hours < 0:
                     raise ValueError('Freeze duration must be 0 or greater.')
+                if freeze_hours > 8760:
+                    raise ValueError('Freeze duration is too long (max 8,760 hours).')
 
             self.inventory_service.add_stock(
                 quantity=quantity,
@@ -189,7 +217,11 @@ class StockPage(QWidget):
             QMessageBox.warning(self, 'Selection Required', 'Select a stock item to sell.')
             return
 
-        stock_id = int(selection[0])
+        try:
+            stock_id = int(selection[0])
+        except Exception:
+            QMessageBox.warning(self, 'Selection Error', 'Selected row is invalid.')
+            return
         try:
             sold_by_user_id = getattr(self.current_user, "user_id", None)
             self.inventory_service.sell_stock(stock_id, sold_by_user_id)

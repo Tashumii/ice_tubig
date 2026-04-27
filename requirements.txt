@@ -1,0 +1,6 @@
+PyQt6
+PyMySQL
+PyQt6-Qt6
+PyQt6-sip
+hashlib
+pywin32

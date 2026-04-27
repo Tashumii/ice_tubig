@@ -71,9 +71,11 @@ class LoginPage(QWidget):
 
         self.username_entry = QLineEdit(card)
         self.username_entry.setPlaceholderText("Enter username")
+        self.username_entry.setMaxLength(50)
         self.password_entry = QLineEdit(card)
         self.password_entry.setPlaceholderText("Enter password")
         self.password_entry.setEchoMode(QLineEdit.EchoMode.Password)
+        self.password_entry.setMaxLength(128)
         self.remember_checkbox = QCheckBox("Remember me", card)
         forgot = QLabel("Forgot?", card)
         forgot.setStyleSheet(f"color:{self.tokens['accent_2']};")
@@ -97,18 +99,14 @@ class LoginPage(QWidget):
 
     def _on_login_clicked(self, event: Any = None):
         """Handle login button click (event optional)."""
-        username = self.username_entry.text().strip()
+        username_input = self.username_entry.text()
         password = self.password_entry.text()
-
-        if not username:
-            self._show_error('Username is required')
-            QMessageBox.warning(self, 'Validation', 'Username is required')
+        validation_error = self._validate_login_inputs(username_input, password)
+        if validation_error:
+            self._show_validation_error(validation_error)
             return
 
-        if not password:
-            self._show_error('Password is required')
-            QMessageBox.warning(self, 'Validation', 'Password is required')
-            return
+        username = username_input.strip()
 
         try:
             user = self.auth_service.authenticate(username, password)
@@ -126,6 +124,32 @@ class LoginPage(QWidget):
                 self.on_login_success(user)
         else:
             self._show_error('Invalid username or password')
+
+    def _validate_login_inputs(self, username: str, password: str) -> str | None:
+        clean_username = (username or '').strip()
+        if not clean_username:
+            return 'Username is required'
+        if len(clean_username) < 3:
+            return 'Username must be at least 3 characters'
+        if len(clean_username) > 50:
+            return 'Username must be 50 characters or fewer'
+        if any(ch.isspace() for ch in clean_username):
+            return 'Username cannot contain spaces'
+
+        if not password:
+            return 'Password is required'
+        if len(password) < 6:
+            return 'Password must be at least 6 characters'
+        if len(password) > 128:
+            return 'Password must be 128 characters or fewer'
+        if not password.strip():
+            return 'Password cannot be only spaces'
+
+        return None
+
+    def _show_validation_error(self, message: str) -> None:
+        self._show_error(message)
+        QMessageBox.warning(self, 'Validation', message)
 
     def _show_error(self, message: str):
         """Display error message."""

@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 from database import DatabaseManager
 from models.user import User
@@ -8,15 +9,19 @@ class AuthService:
 
     def authenticate(self, username: str, password: str) -> Optional[User]:
         """Authenticate user and return User object if valid, None otherwise."""
-        # Validate input
-        if not username or not username.strip():
+        clean_username = (username or "").strip()
+        if not clean_username:
             return None
-        if not password:
+        if len(clean_username) < 3 or len(clean_username) > 50:
+            return None
+        if re.search(r"\s", clean_username):
+            return None
+        if not password or not password.strip():
             return None
 
         # Let DatabaseError bubble up so UI can show a real message instead
         # of silently presenting it as invalid credentials.
-        user_row = self._db.authenticate_user(username.strip(), password)
+        user_row = self._db.authenticate_user(clean_username, password)
         if not user_row:
             return None
 
@@ -38,18 +43,15 @@ class AuthService:
         if not actor or not self.has_role(actor, "admin"):
             raise PermissionError("Only admin can create new accounts.")
 
-        clean_username = (username or "").strip()
-        if len(clean_username) < 3:
-            raise ValueError("Username must be at least 3 characters.")
-        if len(password or "") < 6:
-            raise ValueError("Password must be at least 6 characters.")
+        clean_username = self._validate_username(username)
+        clean_password = self._validate_password(password)
 
         requested = (account_type or "").strip().lower()
         role_name = "staff" if requested == "employee" else requested
         if role_name not in ("admin", "staff"):
             raise ValueError("Account type must be Admin or Employee.")
 
-        return self._db.create_user_with_role(clean_username, password, role_name)
+        return self._db.create_user_with_role(clean_username, clean_password, role_name)
 
     def list_accounts(self, actor: User) -> list[dict]:
         if not actor or not self.has_role(actor, "admin"):
@@ -76,6 +78,29 @@ class AuthService:
     def reset_account_password(self, actor: User, target_user_id: int, new_password: str) -> None:
         if not actor or not self.has_role(actor, "admin"):
             raise PermissionError("Only admin can reset account passwords.")
-        if len(new_password or "") < 6:
+        clean_password = self._validate_password(new_password)
+        self._db.update_user_password(target_user_id, clean_password)
+
+    def _validate_username(self, username: str) -> str:
+        clean = (username or "").strip()
+        if not clean:
+            raise ValueError("Username is required.")
+        if len(clean) < 3:
+            raise ValueError("Username must be at least 3 characters.")
+        if len(clean) > 50:
+            raise ValueError("Username must be 50 characters or fewer.")
+        if re.search(r"\s", clean):
+            raise ValueError("Username cannot contain spaces.")
+        if not re.match(r"^[A-Za-z0-9._-]+$", clean):
+            raise ValueError("Username can only use letters, numbers, dot, underscore, and dash.")
+        return clean
+
+    def _validate_password(self, password: str) -> str:
+        value = password or ""
+        if not value.strip():
+            raise ValueError("Password is required.")
+        if len(value) < 6:
             raise ValueError("Password must be at least 6 characters.")
-        self._db.update_user_password(target_user_id, new_password)
+        if len(value) > 128:
+            raise ValueError("Password must be 128 characters or fewer.")
+        return value

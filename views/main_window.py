@@ -138,6 +138,7 @@ class IceTubigSystem(QWidget):
 
         search = QLineEdit(self.content_frame)
         search.setPlaceholderText('Search reports, products, sales…')
+        search.setMaxLength(100)
         self.page_status_label = QLabel('', self.content_frame)
         self.page_status_label.setProperty("pill", True)
         profile_name = getattr(self.current_user, "username", "Admin") if self.current_user else "Admin"

@@ -2,6 +2,8 @@ from views.components.modern_table import ModernTable
 from typing import Dict
 from services.report_service import ReportService
 from datetime import datetime, timedelta
+
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 
@@ -79,6 +81,7 @@ class ReportsPage(QWidget):
         columns = ('date', 'quantity', 'amount')
         self.sales_table = ModernTable(card, columns=columns, tokens=self.tokens)
         card.layout().addWidget(self.sales_table)
+        self._set_table_height(self.sales_table, 6)
 
     def _build_top_products_table(self, parent):
         card = self._section_card(parent, row=3, title='Top Products', section_label='BY REVENUE')
@@ -88,6 +91,7 @@ class ReportsPage(QWidget):
         columns = ('product', 'sales', 'revenue')
         self.products_table = ModernTable(card, columns=columns, tokens=self.tokens)
         card.layout().addWidget(self.products_table)
+        self._set_table_height(self.products_table, 6)
 
     # ── Widget helpers ────────────────────────────────────────────────────────
 
@@ -131,6 +135,17 @@ class ReportsPage(QWidget):
         v.addWidget(value_label)
         parent.layout().addWidget(frame)
         return value_label
+
+    def _set_table_height(self, table: ModernTable, row_count: int) -> None:
+        rows = max(row_count, 1)
+        header = table.header_height
+        row_height = table.row_height
+        frame_padding = table.table.frameWidth() * 2 + 6
+        target_height = header + (rows * row_height) + frame_padding
+        table.table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        table.table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        table.table.setMinimumHeight(target_height)
+        table.setMinimumHeight(target_height)
 
     # ── Data refresh ──────────────────────────────────────────────────────────
 
@@ -179,10 +194,12 @@ class ReportsPage(QWidget):
                 for item in trend
             ]
             self.sales_table.insert_rows(rows)
+            self._set_table_height(self.sales_table, len(rows))
             n = len(rows)
             self._trend_row_label.setText(f'{n} day{"s" if n != 1 else ""}')
         except Exception:
             self.sales_table.insert_rows([])
+            self._set_table_height(self.sales_table, 1)
             self._trend_row_label.setText('')
             errors.append('sales trend')
 
@@ -198,10 +215,12 @@ class ReportsPage(QWidget):
                 for p in products
             ]
             self.products_table.insert_rows(rows)
+            self._set_table_height(self.products_table, len(rows))
             n = len(rows)
             self._products_row_label.setText(f'Top {n}')
         except Exception:
             self.products_table.insert_rows([])
+            self._set_table_height(self.products_table, 1)
             self._products_row_label.setText('')
             errors.append('top products')
 
