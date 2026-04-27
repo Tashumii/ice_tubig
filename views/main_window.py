@@ -1,147 +1,236 @@
-import tkinter.messagebox as messagebox
-import customtkinter as ctk
+from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
 from styles import apply_app_style
 from services.inventory_service import InventoryService
 from services.sales_service import SalesService
 from services.settings_service import SettingsService
+from services.auth_service import AuthService
 from services.report_service import ReportService
 from views.dashboard_page import DashboardPage
 from views.sales_page import SalesPage
 from views.settings_page import SettingsPage
 from views.stock_page import StockPage
 from views.reports_page import ReportsPage
+from views.components.native_polish import FadeStackedWidget, apply_card_polish
 
 
-class IceTubigSystem(ctk.CTkFrame):
-    def __init__(self, inventory_service: InventoryService, sales_service: SalesService, settings_service: SettingsService, report_service: ReportService = None, **kwargs):
-        super().__init__(**kwargs)
-        self.inventory_service = inventory_service
-        self.sales_service = sales_service
-        self.settings_service = settings_service
-        self.report_service = report_service
-
-        self.tokens = apply_app_style(self, self.settings_service.get_theme())
-        self.configure(fg_color=self.tokens['bg_base'])
-
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
-
-        self._build_sidebar()
-        self._build_content()
-        self.current_page_index = 1
-        self.switch_page(1)
-        self.after(1000, self._tick)
+# Nav item definitions: (label, page_index)
+_NAV_ITEMS = [
+    ('Dashboard', 0),
+    ('Stocks',    1),
+    ('Sales',     2),
+    ('Reports',   3),
+    ('Settings',  4),
+]
 
 
-    def _build_sidebar(self):
-        self.sidebar = ctk.CTkFrame(
-            self,
-            fg_color=self.tokens['bg_sidebar'],
-            corner_radius=0,
-        )
-        self.sidebar.grid(row=0, column=0, sticky='nsew')
-        self.sidebar.grid_rowconfigure(99, weight=1)
+class IceTubigSystem(QWidget):
+    def __init__(
+        self,
+        inventory_service: InventoryService,
+        sales_service: SalesService,
+        settings_service: SettingsService,
+        auth_service: AuthService,
+        report_service: ReportService = None,
+        on_logout_callback=None,
+        tokens=None,
+        current_user=None,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self.inventory_service  = inventory_service
+        self.sales_service      = sales_service
+        self.settings_service   = settings_service
+        self.auth_service       = auth_service
+        self.report_service     = report_service
+        self.on_logout_callback = on_logout_callback
+        self.current_user = current_user
 
-        logo_label = ctk.CTkLabel(
-            self.sidebar,
-            text='ICETUBIG\nINVENTORY SYSTEM',
-            text_color=self.tokens['accent_1'],
-            justify='left',
-            font=ctk.CTkFont(size=16, weight='bold'),
-        )
-        logo_label.grid(row=0, column=0, sticky='w', padx=20, pady=20)
+        self.tokens = tokens if tokens is not None else apply_app_style(self.window().windowHandle(), self.settings_service.get_theme())
+        self._build_ui()
 
-        self.navigation_buttons = []
-        nav_items = [('Dashboard', 0), ('Stocks', 1), ('Sales', 2), ('Reports', 3), ('Settings', 4)]
-        for row, (text, idx) in enumerate(nav_items, start=1):
-            button = ctk.CTkButton(
-                self.sidebar,
-                text=text,
-                command=lambda i=idx: self.switch_page(i),
-                fg_color=self.tokens['bg_sidebar'],
-                text_color=self.tokens['text_secondary'],
-                hover_color=self.tokens['bg_elevated'],
-                anchor='w',
-                width=220,
-                height=44,
-                corner_radius=0,
-            )
-            button.grid(row=row, column=0, sticky='ew')
-            self.navigation_buttons.append(button)
-
-        logout_button = ctk.CTkButton(
-            self.sidebar,
-            text='Logout',
-            command=self.on_logout,
-            fg_color=self.tokens['danger'],
-            hover_color=self.tokens['danger'],
-            text_color='white',
-            anchor='w',
-            width=220,
-            height=44,
-            corner_radius=0,
-        )
-        logout_button.grid(row=98, column=0, sticky='ew')
-
-        version_label = ctk.CTkLabel(
-            self.sidebar,
-            text='v2.0.0 · 2026',
-            text_color=self.tokens['text_muted'],
-            font=ctk.CTkFont(size=9),
-        )
-        version_label.grid(row=99, column=0, sticky='sw', padx=20, pady=20)
-
-    def _build_content(self):
-        self.content_frame = ctk.CTkFrame(
-            self,
-            fg_color=self.tokens['bg_base'],
-            corner_radius=0,
-        )
-        self.content_frame.grid(row=0, column=1, sticky='nsew', padx=20, pady=20)
-        self.content_frame.grid_rowconfigure(0, weight=1)
-        self.content_frame.grid_columnconfigure(0, weight=1)
-
-        self.pages = [
-            DashboardPage(self.inventory_service, self.sales_service, self.tokens, master=self.content_frame),
-            StockPage(self.inventory_service, self.tokens, master=self.content_frame),
-            SalesPage(self.sales_service, self.tokens, master=self.content_frame),
-            ReportsPage(self.report_service, self.tokens, master=self.content_frame),
-            SettingsPage(self.settings_service, self._apply_theme, self.tokens, master=self.content_frame),
+        self.page_names = [label for label, _ in _NAV_ITEMS]
+        self.page_factories = [
+            lambda: DashboardPage(self.inventory_service, self.sales_service, self.tokens, self.current_user, self.page_host),
+            lambda: StockPage(self.inventory_service, self.tokens, self.current_user, self.page_host),
+            lambda: SalesPage(self.sales_service, self.tokens, self.current_user, self.page_host),
+            lambda: ReportsPage(self.report_service, self.tokens, self.page_host),
+            lambda: SettingsPage(self.settings_service, self.auth_service, self.current_user, self._apply_theme, self.tokens, self.page_host),
         ]
+        self.pages = [None] * len(self.page_names)
+        self.current_page_index = 1
 
-        for page in self.pages:
-            page.grid(row=0, column=0, sticky='nsew')
+        QTimer.singleShot(10, lambda: self.switch_page(1))
+        self.tick_timer = QTimer(self)
+        self.tick_timer.timeout.connect(self._tick)
+        self.tick_timer.start(1000)
+
+    def _build_ui(self):
+        root = QHBoxLayout(self)
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(12)
+        self._build_sidebar(root)
+        self._build_content(root)
+        apply_card_polish(self)
+
+    # ── Sidebar ───────────────────────────────────────────────────────────────
+
+    def _build_sidebar(self, root_layout):
+        self.sidebar = QFrame(self)
+        self.sidebar.setProperty("shell", True)
+        self.sidebar.setStyleSheet(f"background:{self.tokens['bg_sidebar']};")
+        side_layout = QVBoxLayout(self.sidebar)
+        side_layout.setContentsMargins(12, 14, 12, 12)
+        side_layout.setSpacing(8)
+
+        # ── Logo block ────────────────────────────────────────────────────────
+        brand_title = QLabel('ICETUBIG', self.sidebar)
+        brand_title.setProperty("brandTitle", True)
+        brand_sub = QLabel('COLD CHAIN DASHBOARD', self.sidebar)
+        brand_sub.setProperty("brandSub", True)
+        side_layout.addWidget(brand_title)
+        side_layout.addWidget(brand_sub)
+
+        # ── Divider ───────────────────────────────────────────────────────────
+        side_layout.addSpacing(8)
+
+        # ── Nav items ─────────────────────────────────────────────────────────
+        self.navigation_buttons = []
+        for (label, idx) in _NAV_ITEMS:
+            item = self._nav_item(label, idx)
+            side_layout.addWidget(item['button'])
+            self.navigation_buttons.append(item)
+
+        # ── Spacer (row 90 has weight=1) ──────────────────────────────────────
+
+        # ── Divider above footer ──────────────────────────────────────────────
+        side_layout.addStretch()
+        logout_btn = QPushButton('Logout', self.sidebar)
+        logout_btn.setProperty("danger", True)
+        logout_btn.clicked.connect(self.on_logout)
+        side_layout.addWidget(logout_btn)
+        version = QLabel('v2.0.0 · 2026', self.sidebar)
+        version.setProperty("muted", True)
+        side_layout.addWidget(version)
+        root_layout.addWidget(self.sidebar, 0)
+
+    def _nav_item(self, label: str, idx: int) -> dict:
+        button = QPushButton(label, self.sidebar)
+        button.setProperty("nav", True)
+        button.clicked.connect(lambda: self.switch_page(idx))
+        return {'button': button}
+
+    # ── Content area ──────────────────────────────────────────────────────────
+
+    def _build_content(self, root_layout):
+        self.content_frame = QFrame(self)
+        self.content_frame.setProperty("shell", True)
+        content = QVBoxLayout(self.content_frame)
+        content.setContentsMargins(10, 10, 10, 10)
+        content.setSpacing(10)
+
+        topbar_frame = QFrame(self.content_frame)
+        topbar_frame.setProperty("topbar", True)
+        topbar = QHBoxLayout(topbar_frame)
+        topbar.setContentsMargins(10, 8, 10, 8)
+        topbar.setSpacing(8)
+
+        search = QLineEdit(self.content_frame)
+        search.setPlaceholderText('Search reports, products, sales…')
+        self.page_status_label = QLabel('', self.content_frame)
+        self.page_status_label.setProperty("pill", True)
+        profile_name = getattr(self.current_user, "username", "Admin") if self.current_user else "Admin"
+        profile = QPushButton(profile_name.title(), self.content_frame)
+        profile.setProperty("nav", True)
+        profile.setProperty("navActive", True)
+        topbar.addWidget(search, 1)
+        topbar.addWidget(self.page_status_label)
+        topbar.addWidget(profile)
+        content.addWidget(topbar_frame)
+        self.page_host = FadeStackedWidget(self.content_frame)
+        content.addWidget(self.page_host, 1)
+        root_layout.addWidget(self.content_frame, 1)
+
+    # ── Navigation ────────────────────────────────────────────────────────────
 
     def switch_page(self, index: int):
+        if index < 0 or index >= len(self.page_names):
+            return
+
         self.current_page_index = index
-        for idx, button in enumerate(self.navigation_buttons):
-            if idx == index:
-                button.configure(
-                    fg_color=self.tokens['bg_elevated'],
-                    text_color=self.tokens['accent_1'],
-                )
-            else:
-                button.configure(
-                    fg_color=self.tokens['bg_sidebar'],
-                    text_color=self.tokens['text_secondary'],
-                )
-        self.pages[index].tkraise()
-        if hasattr(self.pages[index], 'refresh'):
-            self.pages[index].refresh()
+
+        for nav_idx, item in enumerate(self.navigation_buttons):
+            active = nav_idx == index
+            btn = item['button']
+            btn.setProperty("navActive", active)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+
+        page = self._get_or_create_page(index)
+        self.page_host.switch_to(page)
+
+        page_name = self.page_names[index]
+        self.page_status_label.setText(page_name)
+
+        if hasattr(page, 'refresh'):
+            QTimer.singleShot(50, lambda i=index, n=page_name: self._refresh_page(i, n))
+
+    def _refresh_page(self, index: int, page_name: str):
+        try:
+            page = self.pages[index]
+            if page is not None and hasattr(page, 'refresh'):
+                page.refresh()
+        except Exception as exc:
+            self.page_status_label.setText(f'{page_name}: error')
+
+    def _get_or_create_page(self, index: int):
+        if self.pages[index] is None:
+            page = self._create_page_safely(self.page_names[index], self.page_factories[index])
+            self.page_host.addWidget(page)
+            apply_card_polish(page)
+            self.pages[index] = page
+        return self.pages[index]
+
+    def _create_page_safely(self, page_name: str, factory):
+        try:
+            return factory()
+        except Exception as exc:
+            fallback = QFrame(self.page_host)
+            layout = QVBoxLayout(fallback)
+            err = QLabel(f'{page_name} failed to load.\n\n{exc}', fallback)
+            err.setStyleSheet(f"color:{self.tokens['danger']};")
+            layout.addWidget(err)
+            return fallback
+
+    # ── Tick (live countdowns) ────────────────────────────────────────────────
 
     def _tick(self):
-        if hasattr(self.pages[1], 'update_countdowns'):
-            self.pages[1].update_countdowns()
-        self.after(1000, self._tick)
+        try:
+            stock_page = self.pages[1]
+            if stock_page is not None and hasattr(stock_page, 'update_countdowns'):
+                stock_page.update_countdowns()
+        except Exception:
+            pass
+        pass
+
+    # ── Theme ─────────────────────────────────────────────────────────────────
 
     def _apply_theme(self, theme: str):
-        self.tokens = apply_app_style(self, theme)
+        self.tokens = apply_app_style(self.window().windowHandle(), theme)
         self.switch_page(self.current_page_index)
 
-    def on_logout(self):
-        """Handle logout action."""
-        if hasattr(self.master.master, 'show_login'):
-            self.master.master.show_login()
+    # ── Logout ────────────────────────────────────────────────────────────────
 
-        messagebox.showinfo('Saved', 'Theme updated. Changes applied.')
+    def on_logout(self):
+        try:
+            if callable(self.on_logout_callback):
+                self.on_logout_callback()
+                return
+            parent = self.parentWidget()
+            if parent is not None and hasattr(parent, 'show_login'):
+                parent.show_login()
+                return
+            QMessageBox.critical(self, 'Logout Error', 'Unable to return to login screen.')
+        except Exception as exc:
+            QMessageBox.critical(self, 'Logout Error', str(exc))

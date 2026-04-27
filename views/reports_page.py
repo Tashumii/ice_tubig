@@ -1,10 +1,11 @@
-import customtkinter as ctk
-from tkinter import ttk
+from views.components.modern_table import ModernTable
 from typing import Dict
 from services.report_service import ReportService
 from datetime import datetime, timedelta
+from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
-class ReportsPage(ctk.CTkFrame):
+
+class ReportsPage(QWidget):
     def __init__(
         self,
         report_service: ReportService,
@@ -15,269 +16,193 @@ class ReportsPage(ctk.CTkFrame):
         super().__init__(*args, **kwargs)
         self.report_service = report_service
         self.tokens = tokens
-        self.last_refresh_time = datetime.now() - timedelta(seconds=2)  # Allow initial refresh
-        self.refresh_cooldown_seconds = 1  # Minimum seconds between refreshes
-        self.configure(fg_color=self.tokens['bg_base'])
+        self.last_refresh_time = datetime.now() - timedelta(seconds=2)
+        self.refresh_cooldown_seconds = 1
+        self.setStyleSheet(f"background:{self.tokens['bg_base']};")
         self._build_ui()
-        self.refresh()
 
     def _build_ui(self):
-        """Build reports page UI."""
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        root = QVBoxLayout(self)
 
-        # Header
-        header_frame = ctk.CTkFrame(self, fg_color=self.tokens['bg_base'])
-        header_frame.grid(row=0, column=0, sticky='ew', pady=(0, 12))
-        header_frame.grid_columnconfigure(0, weight=1)
+        # ── Header ───────────────────────────────────────────────────────────
+        header = QHBoxLayout()
+        left = QVBoxLayout()
+        title = QLabel('Reports', self)
+        title.setStyleSheet("font-size:24px; font-weight:700;")
+        subtitle = QLabel('Revenue, sales trends, inventory status, and performance analytics.', self)
+        subtitle.setStyleSheet(f"color:{self.tokens['text_secondary']};")
+        self.status_label = QLabel('', self)
+        self.status_label.setStyleSheet(f"color:{self.tokens['danger']};")
+        left.addWidget(title); left.addWidget(subtitle); left.addWidget(self.status_label)
+        refresh_button = QPushButton('REFRESH', self)
+        refresh_button.clicked.connect(self.refresh)
+        header.addLayout(left); header.addStretch(); header.addWidget(refresh_button)
+        root.addLayout(header)
 
-        title = ctk.CTkLabel(
-            header_frame,
-            text='Reports',
-            font=ctk.CTkFont(size=24, weight='bold'),
-            text_color=self.tokens['text_primary'],
-        )
-        title.grid(row=0, column=0, sticky='w')
+        # ── Scrollable content ────────────────────────────────────────────────
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        body = QWidget(scroll)
+        self.body_layout = QVBoxLayout(body)
+        scroll.setWidget(body)
+        root.addWidget(scroll, 1)
 
-        subtitle = ctk.CTkLabel(
-            header_frame,
-            text='Revenue, sales trends, inventory status, and performance analytics.',
-            font=ctk.CTkFont(size=12),
-            text_color=self.tokens['text_secondary'],
-        )
-        subtitle.grid(row=1, column=0, sticky='w', pady=(4, 0))
+        self._build_revenue_card(body)
+        self._build_stock_status_card(body)
+        self._build_sales_trend_table(body)
+        self._build_top_products_table(body)
 
-        # Buttons frame
-        button_frame = ctk.CTkFrame(header_frame, fg_color=self.tokens['bg_base'])
-        button_frame.grid(row=0, column=1, rowspan=2, sticky='e', padx=(12, 0))
-
-        refresh_button = ctk.CTkButton(
-            button_frame,
-            text='Refresh',
-            command=self.refresh,
-            fg_color=self.tokens['accent_1'],
-            hover_color=self.tokens['accent_2'],
-            text_color=self.tokens['bg_base'],
-            width=100,
-        )
-        refresh_button.grid(row=0, column=0, padx=(0, 8))
-
-        # Content scroll frame
-        scroll_frame = ctk.CTkScrollableFrame(
-            self,
-            fg_color=self.tokens['bg_base'],
-            label_text='',
-        )
-        scroll_frame.grid(row=1, column=0, sticky='nsew', pady=(0, 0))
-        scroll_frame.grid_columnconfigure(0, weight=1)
-
-        # Revenue Summary Card
-        self._build_revenue_card(scroll_frame)
-
-        # Sales Trend Table
-        self._build_sales_trend_table(scroll_frame)
-
-        # Stock Status Card
-        self._build_stock_status_card(scroll_frame)
-
-        # Top Products Table
-        self._build_top_products_table(scroll_frame)
+    # ── Section builders ──────────────────────────────────────────────────────
 
     def _build_revenue_card(self, parent):
-        """Build revenue summary card."""
-        card = ctk.CTkFrame(
-            parent,
-            fg_color=self.tokens['bg_surface'],
-            corner_radius=12,
-            border_color=self.tokens['border'],
-            border_width=1,
-        )
-        card.grid(row=0, column=0, sticky='ew', pady=(0, 16), padx=0)
-        card.grid_columnconfigure((0, 1, 2), weight=1)
+        card = self._section_card(parent, row=0, title='Revenue Summary', section_label='ALL TIME')
+        card.layout().setSpacing(8)
 
-        title = ctk.CTkLabel(
-            card,
-            text='Revenue Summary',
-            font=ctk.CTkFont(size=16, weight='bold'),
-            text_color=self.tokens['text_primary'],
-        )
-        title.grid(row=0, column=0, columnspan=3, sticky='w', padx=16, pady=(16, 12))
-
-        self.total_label = self._metric_card(card, 'Total Revenue', '0.00', 0, 0)
-        self.this_month_label = self._metric_card(card, 'This Month', '0.00', 0, 1)
-        self.this_year_label = self._metric_card(card, 'This Year', '0.00', 0, 2)
-
-    def _metric_card(self, parent, label: str, value: str, row: int, col: int):
-        """Create a metric card."""
-        frame = ctk.CTkFrame(parent, fg_color=self.tokens['bg_elevated'], corner_radius=8)
-        frame.grid(row=row + 1, column=col, sticky='ew', padx=8, pady=(0, 16))
-        frame.grid_columnconfigure(0, weight=1)
-
-        label_widget = ctk.CTkLabel(
-            frame,
-            text=label,
-            font=ctk.CTkFont(size=12),
-            text_color=self.tokens['text_secondary'],
-        )
-        label_widget.grid(row=0, column=0, sticky='w', padx=12, pady=(8, 0))
-
-        value_label = ctk.CTkLabel(
-            frame,
-            text=value,
-            font=ctk.CTkFont(size=18, weight='bold'),
-            text_color=self.tokens['accent_1'],
-        )
-        value_label.grid(row=1, column=0, sticky='w', padx=12, pady=(4, 12))
-
-        return value_label
-
-    def _build_sales_trend_table(self, parent):
-        """Build sales trend table."""
-        card = ctk.CTkFrame(
-            parent,
-            fg_color=self.tokens['bg_surface'],
-            corner_radius=12,
-            border_color=self.tokens['border'],
-            border_width=1,
-        )
-        card.grid(row=1, column=0, sticky='ew', pady=(0, 16), padx=0)
-        card.grid_rowconfigure(1, weight=1)
-        card.grid_columnconfigure(0, weight=1)
-
-        title = ctk.CTkLabel(
-            card,
-            text='Sales Trend (Last 30 Days)',
-            font=ctk.CTkFont(size=16, weight='bold'),
-            text_color=self.tokens['text_primary'],
-        )
-        title.grid(row=0, column=0, sticky='w', padx=16, pady=(16, 12))
-
-        columns = ('date', 'quantity', 'amount')
-        self.sales_tree = ttk.Treeview(card, columns=columns, show='headings', height=8)
-
-        self.sales_tree.column('date', width=100)
-        self.sales_tree.column('quantity', width=80)
-        self.sales_tree.column('amount', width=100)
-
-        self.sales_tree.heading('date', text='Date')
-        self.sales_tree.heading('quantity', text='Qty')
-        self.sales_tree.heading('amount', text='Amount')
-
-        self.sales_tree.grid(row=1, column=0, sticky='nsew', padx=12, pady=(0, 12))
+        self.total_label      = self._metric_card(card, 'Total Revenue', '₱ 0.00', row=1, col=0, accent=True)
+        self.this_month_label = self._metric_card(card, 'This Month',    '₱ 0.00', row=1, col=1)
+        self.this_year_label  = self._metric_card(card, 'This Year',     '₱ 0.00', row=1, col=2)
 
     def _build_stock_status_card(self, parent):
-        """Build stock status breakdown card."""
-        card = ctk.CTkFrame(
-            parent,
-            fg_color=self.tokens['bg_surface'],
-            corner_radius=12,
-            border_color=self.tokens['border'],
-            border_width=1,
-        )
-        card.grid(row=2, column=0, sticky='ew', pady=(0, 16), padx=0)
-        card.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        card = self._section_card(parent, row=1, title='Stock Status', section_label='CURRENT')
+        card.layout().setSpacing(8)
 
-        title = ctk.CTkLabel(
-            card,
-            text='Stock Status',
-            font=ctk.CTkFont(size=16, weight='bold'),
-            text_color=self.tokens['text_primary'],
-        )
-        title.grid(row=0, column=0, columnspan=4, sticky='w', padx=16, pady=(16, 12))
+        self.available_stock_label = self._metric_card(card, 'Available', '0', row=1, col=0, accent_color=self.tokens['success'])
+        self.freezing_stock_label  = self._metric_card(card, 'Freezing',  '0', row=1, col=1, accent_color=self.tokens['accent_1'])
+        self.sold_stock_label      = self._metric_card(card, 'Sold',      '0', row=1, col=2)
+        self.total_stock_label     = self._metric_card(card, 'Total',     '0', row=1, col=3)
 
-        self.available_stock_label = self._metric_card(card, 'Available', '0', 0, 0)
-        self.freezing_stock_label = self._metric_card(card, 'Freezing', '0', 0, 1)
-        self.sold_stock_label = self._metric_card(card, 'Sold', '0', 0, 2)
-        self.total_stock_label = self._metric_card(card, 'Total', '0', 0, 3)
+    def _build_sales_trend_table(self, parent):
+        card = self._section_card(parent, row=2, title='Sales Trend', section_label='LAST 30 DAYS')
+        self._trend_row_label = QLabel('', card)
+        card.layout().addWidget(self._trend_row_label)
+
+        columns = ('date', 'quantity', 'amount')
+        self.sales_table = ModernTable(card, columns=columns, tokens=self.tokens)
+        card.layout().addWidget(self.sales_table)
 
     def _build_top_products_table(self, parent):
-        """Build top products table."""
-        card = ctk.CTkFrame(
-            parent,
-            fg_color=self.tokens['bg_surface'],
-            corner_radius=12,
-            border_color=self.tokens['border'],
-            border_width=1,
-        )
-        card.grid(row=3, column=0, sticky='ew', pady=(0, 16), padx=0)
-        card.grid_rowconfigure(1, weight=1)
-        card.grid_columnconfigure(0, weight=1)
-
-        title = ctk.CTkLabel(
-            card,
-            text='Top Products',
-            font=ctk.CTkFont(size=16, weight='bold'),
-            text_color=self.tokens['text_primary'],
-        )
-        title.grid(row=0, column=0, sticky='w', padx=16, pady=(16, 12))
+        card = self._section_card(parent, row=3, title='Top Products', section_label='BY REVENUE')
+        self._products_row_label = QLabel('', card)
+        card.layout().addWidget(self._products_row_label)
 
         columns = ('product', 'sales', 'revenue')
-        self.products_tree = ttk.Treeview(card, columns=columns, show='headings', height=8)
+        self.products_table = ModernTable(card, columns=columns, tokens=self.tokens)
+        card.layout().addWidget(self.products_table)
 
-        self.products_tree.column('product', width=150)
-        self.products_tree.column('sales', width=80)
-        self.products_tree.column('revenue', width=100)
+    # ── Widget helpers ────────────────────────────────────────────────────────
 
-        self.products_tree.heading('product', text='Product')
-        self.products_tree.heading('sales', text='Sales')
-        self.products_tree.heading('revenue', text='Revenue')
+    def _section_card(self, parent, row: int, title: str, section_label: str = ''):
+        """Create a titled surface card and return it (callers add children to it)."""
+        card = QFrame(parent)
+        card.setProperty("card", True)
+        v = QVBoxLayout(card)
+        h = QHBoxLayout()
+        h.addWidget(QLabel(title, card))
+        h.addStretch()
+        if section_label:
+            h.addWidget(QLabel(section_label, card))
+        v.addLayout(h)
+        self.body_layout.addWidget(card)
 
-        self.products_tree.grid(row=1, column=0, sticky='nsew', padx=12, pady=(0, 12))
+        return card
+
+    def _metric_card(
+        self,
+        parent,
+        label: str,
+        value: str,
+        row: int,
+        col: int,
+        accent: bool = False,
+        accent_color: str = None,
+    ):
+        frame = QFrame(parent)
+        frame.setProperty("panel", True)
+        v = QVBoxLayout(frame)
+        v.addWidget(QLabel(label, frame))
+
+        value_color = (
+            accent_color if accent_color
+            else self.tokens['accent_1'] if accent
+            else self.tokens['text_primary']
+        )
+        value_label = QLabel(value, frame)
+        value_label.setStyleSheet(f"font-size:18px; font-weight:700; color:{value_color};")
+        v.addWidget(value_label)
+        parent.layout().addWidget(frame)
+        return value_label
+
+    # ── Data refresh ──────────────────────────────────────────────────────────
 
     def refresh(self):
-        """Refresh all report data with cooldown throttling."""
-        # Throttle rapid refresh calls
         now = datetime.now()
         if (now - self.last_refresh_time).total_seconds() < self.refresh_cooldown_seconds:
             return
         self.last_refresh_time = now
 
+        errors = []
+
+        # Revenue summary
         try:
-            # Revenue summary
-            revenue = self.report_service.get_revenue_summary()
-            if not revenue:
-                raise ValueError("Failed to fetch revenue data")
-            self.total_label.configure(text=f"₱{revenue.get('total', 0):,.2f}")
-            self.this_month_label.configure(text=f"₱{revenue.get('this_month', 0):,.2f}")
-            self.this_year_label.configure(text=f"₱{revenue.get('this_year', 0):,.2f}")
+            revenue = self.report_service.get_revenue_summary() or {}
+            self.total_label.setText(f"₱ {revenue.get('total', 0):,.2f}")
+            self.this_month_label.setText(f"₱ {revenue.get('this_month', 0):,.2f}")
+            self.this_year_label.setText(f"₱ {revenue.get('this_year', 0):,.2f}")
+        except Exception:
+            self.total_label.setText('₱ 0.00')
+            self.this_month_label.setText('₱ 0.00')
+            self.this_year_label.setText('₱ 0.00')
+            errors.append('revenue')
 
-            # Sales trend
-            for item in self.sales_tree.get_children():
-                self.sales_tree.delete(item)
-            
-            trend = self.report_service.get_sales_trend(30)
-            if trend is None:
-                trend = []
-            for item in trend:
-                self.sales_tree.insert('', 'end', values=(
-                    item.get('date', 'N/A'),
-                    item.get('quantity', 0),
-                    f"₱{item.get('amount', 0):,.2f}",
-                ))
+        # Stock status
+        try:
+            stock = self.report_service.get_stock_status_report() or {}
+            self.available_stock_label.setText(str(stock.get('available', 0)))
+            self.freezing_stock_label.setText(str(stock.get('freezing', 0)))
+            self.sold_stock_label.setText(str(stock.get('sold', 0)))
+            self.total_stock_label.setText(str(stock.get('total', 0)))
+        except Exception:
+            for lbl in (self.available_stock_label, self.freezing_stock_label,
+                        self.sold_stock_label, self.total_stock_label):
+                lbl.setText('0')
+            errors.append('stock status')
 
-            # Stock status
-            stock_status = self.report_service.get_stock_status_report()
-            if not stock_status:
-                raise ValueError("Failed to fetch stock status")
-            self.available_stock_label.configure(text=str(stock_status.get('available', 0)))
-            self.freezing_stock_label.configure(text=str(stock_status.get('freezing', 0)))
-            self.sold_stock_label.configure(text=str(stock_status.get('sold', 0)))
-            self.total_stock_label.configure(text=str(stock_status.get('total', 0)))
+        # Sales trend
+        try:
+            trend = self.report_service.get_sales_trend(30) or []
+            rows = [
+                {
+                    'date':     item.get('date', 'N/A'),
+                    'quantity': item.get('quantity', 0),
+                    'amount':   f"₱ {item.get('amount', 0):,.2f}",
+                }
+                for item in trend
+            ]
+            self.sales_table.insert_rows(rows)
+            n = len(rows)
+            self._trend_row_label.setText(f'{n} day{"s" if n != 1 else ""}')
+        except Exception:
+            self.sales_table.insert_rows([])
+            self._trend_row_label.setText('')
+            errors.append('sales trend')
 
-            # Top products
-            for item in self.products_tree.get_children():
-                self.products_tree.delete(item)
-            
-            products = self.report_service.get_top_products(10)
-            if products is None:
-                products = []
-            for product in products:
-                self.products_tree.insert('', 'end', values=(
-                    product.get('product_name', 'Unknown'),
-                    product.get('sale_count', 0),
-                    f"₱{product.get('total_revenue', 0):,.2f}",
-                ))
-        except Exception as e:
-            # Log error but don't crash
-            import sys
-            print(f"Error refreshing reports: {e}", file=sys.stderr)
+        # Top products
+        try:
+            products = self.report_service.get_top_products(10) or []
+            rows = [
+                {
+                    'product': p.get('product_name', 'Unknown'),
+                    'sales':   p.get('sale_count', 0),
+                    'revenue': f"₱ {p.get('total_revenue', 0):,.2f}",
+                }
+                for p in products
+            ]
+            self.products_table.insert_rows(rows)
+            n = len(rows)
+            self._products_row_label.setText(f'Top {n}')
+        except Exception:
+            self.products_table.insert_rows([])
+            self._products_row_label.setText('')
+            errors.append('top products')
+
+        self.status_label.setText(f"Some sections failed to load: {', '.join(errors)}" if errors else '')

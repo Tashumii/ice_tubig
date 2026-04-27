@@ -18,6 +18,9 @@ class DatabaseManager:
                 database="ice_tubig",
                 charset="utf8mb4",
                 client_flag=CLIENT.MULTI_STATEMENTS,
+                connect_timeout=5,
+                read_timeout=10,
+                write_timeout=10,
             )
         except pymysql.MySQLError as exc:
             raise DatabaseError(f"Failed to connect to database: {exc}") from exc
@@ -40,8 +43,17 @@ class DatabaseManager:
             raise DatabaseError(message)
         raise DatabaseError(f"{message}: {exc}") from exc
 
+    def _ensure_connection_alive(self):
+        if getattr(self, "conn", None) is None:
+            self._raise_error("Database connection is closed")
+        try:
+            self.conn.ping(reconnect=True)
+        except pymysql.MySQLError as exc:
+            self._raise_error("Database connection unavailable", exc)
+
     def _execute_query(self, sql, params=None, commit=False, fetchone=False, fetchall=False):
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(sql, params)
                 if commit:
@@ -54,10 +66,11 @@ class DatabaseManager:
             self.conn.rollback()
             self._raise_error("Database execution error", exc)
 
-    def _execute_safe_schema(self, sql, ignore_error_codes=None):
+    def _execute_safe_schema(self, sql, params=None, ignore_error_codes=None):
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
-                cursor.execute(sql)
+                cursor.execute(sql, params)
         except pymysql.MySQLError as exc:
             if ignore_error_codes and exc.args and exc.args[0] in ignore_error_codes:
                 return
@@ -65,6 +78,7 @@ class DatabaseManager:
 
     def _call_procedure(self, procedure_name, args=None, fetchone=False, fetchall=False):
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.callproc(procedure_name, args or ())
                 if fetchone:
@@ -94,6 +108,7 @@ class DatabaseManager:
                 user_id INT AUTO_INCREMENT PRIMARY KEY,
                 username VARCHAR(50) UNIQUE NOT NULL,
                 password_hash VARCHAR(64) NOT NULL,
+                is_active TINYINT(1) NOT NULL DEFAULT 1,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 INDEX (username)
             )
@@ -111,7 +126,9 @@ class DatabaseManager:
             CREATE TABLE IF NOT EXISTS system_settings (
                 id INT PRIMARY KEY DEFAULT 1,
                 freeze_duration_hours INT NOT NULL DEFAULT 3,
-                theme VARCHAR(20) NOT NULL DEFAULT 'light'
+                theme VARCHAR(20) NOT NULL DEFAULT 'light',
+                shift_start_time TIME NOT NULL DEFAULT '08:00:00',
+                shift_end_time TIME NOT NULL DEFAULT '17:00:00'
             )
             """,
             """
@@ -131,6 +148,7 @@ class DatabaseManager:
                 stock_id INT NOT NULL,
                 sale_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 price DECIMAL(10,2) NOT NULL,
+                sold_by_user_id INT NULL,
                 FOREIGN KEY (stock_id) REFERENCES ice_stocks(stock_id)
             )
             """,
@@ -151,6 +169,23 @@ class DatabaseManager:
                 INDEX (event_type)
             )
             """,
+            """
+            CREATE TABLE IF NOT EXISTS employee_shift_logs (
+                log_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                shift_date DATE NOT NULL,
+                expected_in TIME NOT NULL,
+                expected_out TIME NOT NULL,
+                actual_in DATETIME NULL,
+                actual_out DATETIME NULL,
+                attendance_status VARCHAR(20) NOT NULL DEFAULT 'OFFSITE',
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uniq_user_shift (user_id, shift_date),
+                INDEX idx_shift_date (shift_date),
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            )
+            """,
         ]
 
         for statement in schema_statements:
@@ -164,7 +199,8 @@ class DatabaseManager:
         # Seed default admin user
         admin_password_hash = self._hash_password("admin123")
         self._execute_safe_schema(
-            f"INSERT IGNORE INTO users (user_id, username, password_hash) VALUES (1, 'admin', '{admin_password_hash}')"
+            "INSERT IGNORE INTO users (user_id, username, password_hash) VALUES (1, %s, %s)",
+            params=('admin', admin_password_hash),
         )
 
         # Assign admin role to admin user
@@ -182,6 +218,26 @@ class DatabaseManager:
         )
         self._execute_safe_schema(
             "ALTER TABLE ice_activity_log ADD COLUMN product_name VARCHAR(80) NULL",
+            ignore_error_codes=(1060,),
+        )
+        self._execute_safe_schema(
+            "ALTER TABLE ice_sales ADD COLUMN sold_by_user_id INT NULL",
+            ignore_error_codes=(1060,),
+        )
+        self._execute_safe_schema(
+            "ALTER TABLE ice_sales ADD INDEX idx_ice_sales_sold_by_user_id (sold_by_user_id)",
+            ignore_error_codes=(1061,),
+        )
+        self._execute_safe_schema(
+            "ALTER TABLE users ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1",
+            ignore_error_codes=(1060,),
+        )
+        self._execute_safe_schema(
+            "ALTER TABLE system_settings ADD COLUMN shift_start_time TIME NOT NULL DEFAULT '08:00:00'",
+            ignore_error_codes=(1060,),
+        )
+        self._execute_safe_schema(
+            "ALTER TABLE system_settings ADD COLUMN shift_end_time TIME NOT NULL DEFAULT '17:00:00'",
             ignore_error_codes=(1060,),
         )
 
@@ -227,7 +283,7 @@ class DatabaseManager:
             """,
             """
             DROP PROCEDURE IF EXISTS sp_sell_stock;
-            CREATE PROCEDURE sp_sell_stock(IN p_stock_id INT)
+            CREATE PROCEDURE sp_sell_stock(IN p_stock_id INT, IN p_sold_by_user_id INT)
             BEGIN
                 DECLARE v_status ENUM('NOT_AVAILABLE', 'AVAILABLE', 'SOLD');
                 DECLARE EXIT HANDLER FOR NOT FOUND SET v_status = NULL;
@@ -237,8 +293,8 @@ class DatabaseManager:
                 ELSEIF v_status != 'AVAILABLE' THEN
                     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Stock not available for sale';
                 ELSE
-                    INSERT INTO ice_sales (stock_id, price)
-                    SELECT stock_id, price FROM ice_stocks WHERE stock_id = p_stock_id;
+                    INSERT INTO ice_sales (stock_id, price, sold_by_user_id)
+                    SELECT stock_id, price, p_sold_by_user_id FROM ice_stocks WHERE stock_id = p_stock_id;
                     UPDATE ice_stocks SET status = 'SOLD' WHERE stock_id = p_stock_id;
                 END IF;
             END;
@@ -304,7 +360,11 @@ class DatabaseManager:
                     stock_id, event_type, old_status, new_status, product_name, kg, price, freeze_duration_hours, details
                 ) VALUES (
                     NEW.stock_id,
-                    NEW.status,
+                    CASE
+                        WHEN NEW.status = 'SOLD' THEN 'SOLD'
+                        WHEN NEW.status = 'AVAILABLE' THEN 'AVAILABLE'
+                        ELSE 'CONFIG'
+                    END,
                     OLD.status,
                     NEW.status,
                     NEW.product_name,
@@ -354,12 +414,41 @@ class DatabaseManager:
     def fetch_sales_history(self):
         query = """
             SELECT s.sale_id, s.stock_id, DATE_FORMAT(i.time_added, '%b %d, %Y %h:%i %p'),
-                   DATE_FORMAT(s.sale_time, '%b %d, %Y %h:%i %p'), i.product_name, s.price, i.kg
+                   DATE_FORMAT(s.sale_time, '%b %d, %Y %h:%i %p'),
+                   i.product_name,
+                   s.price,
+                   i.kg,
+                   s.sold_by_user_id,
+                   COALESCE(u.username, 'Unassigned') AS sold_by_username,
+                   CASE
+                       WHEN HOUR(s.sale_time) BETWEEN 6 AND 13 THEN 'Morning Shift'
+                       WHEN HOUR(s.sale_time) BETWEEN 14 AND 21 THEN 'Afternoon Shift'
+                       ELSE 'Night Shift'
+                   END AS shift_name
             FROM ice_sales s
             INNER JOIN ice_stocks i ON s.stock_id = i.stock_id
+            LEFT JOIN users u ON u.user_id = s.sold_by_user_id
             ORDER BY s.sale_time DESC
         """
         return self._execute_query(query, fetchall=True)
+
+    def fetch_employee_sales_summary(self):
+        query = """
+            SELECT
+                COALESCE(u.username, 'Unassigned') AS username,
+                CASE
+                    WHEN HOUR(s.sale_time) BETWEEN 6 AND 13 THEN 'Morning Shift'
+                    WHEN HOUR(s.sale_time) BETWEEN 14 AND 21 THEN 'Afternoon Shift'
+                    ELSE 'Night Shift'
+                END AS shift_name,
+                COUNT(*) AS sales_count,
+                COALESCE(SUM(s.price), 0) AS total_revenue
+            FROM ice_sales s
+            LEFT JOIN users u ON u.user_id = s.sold_by_user_id
+            GROUP BY COALESCE(u.username, 'Unassigned'), shift_name
+            ORDER BY total_revenue DESC, sales_count DESC
+        """
+        return self._execute_query(query, fetchall=True) or []
 
     def fetch_sales_comparison_summary(self):
         result = self._execute_query(
@@ -409,6 +498,92 @@ class DatabaseManager:
             (theme,),
             commit=True,
         )
+
+    def fetch_shift_schedule(self):
+        result = self._execute_query(
+            "SELECT shift_start_time, shift_end_time FROM system_settings WHERE id = 1",
+            fetchone=True,
+        )
+        if not result:
+            return ("08:00:00", "17:00:00")
+        return result
+
+    def update_shift_schedule(self, shift_start_time: str, shift_end_time: str):
+        self._execute_query(
+            "INSERT INTO system_settings (id, shift_start_time, shift_end_time) VALUES (1, %s, %s) "
+            "ON DUPLICATE KEY UPDATE shift_start_time = VALUES(shift_start_time), shift_end_time = VALUES(shift_end_time)",
+            (shift_start_time, shift_end_time),
+            commit=True,
+        )
+
+    def clock_in_user(self, user_id: int):
+        query = """
+            INSERT INTO employee_shift_logs (
+                user_id, shift_date, expected_in, expected_out, actual_in, attendance_status
+            )
+            VALUES (
+                %s,
+                CURRENT_DATE(),
+                (SELECT shift_start_time FROM system_settings WHERE id = 1),
+                (SELECT shift_end_time FROM system_settings WHERE id = 1),
+                NOW(),
+                CASE
+                    WHEN TIME(NOW()) <= (SELECT shift_start_time FROM system_settings WHERE id = 1)
+                    THEN 'ON_TIME'
+                    ELSE 'LATE'
+                END
+            )
+            ON DUPLICATE KEY UPDATE
+                actual_in = COALESCE(actual_in, VALUES(actual_in)),
+                expected_in = VALUES(expected_in),
+                expected_out = VALUES(expected_out),
+                attendance_status = CASE
+                    WHEN actual_in IS NULL AND TIME(NOW()) <= (SELECT shift_start_time FROM system_settings WHERE id = 1) THEN 'ON_TIME'
+                    WHEN actual_in IS NULL THEN 'LATE'
+                    ELSE attendance_status
+                END
+        """
+        self._execute_query(query, (user_id,), commit=True)
+
+    def clock_out_user(self, user_id: int):
+        query = """
+            INSERT INTO employee_shift_logs (
+                user_id, shift_date, expected_in, expected_out, actual_out, attendance_status
+            )
+            VALUES (
+                %s,
+                CURRENT_DATE(),
+                (SELECT shift_start_time FROM system_settings WHERE id = 1),
+                (SELECT shift_end_time FROM system_settings WHERE id = 1),
+                NOW(),
+                'COMPLETED'
+            )
+            ON DUPLICATE KEY UPDATE
+                actual_out = NOW(),
+                attendance_status = 'COMPLETED'
+        """
+        self._execute_query(query, (user_id,), commit=True)
+
+    def fetch_shift_logs(self, user_id: int | None = None):
+        query = """
+            SELECT
+                l.log_id,
+                u.username,
+                l.shift_date,
+                DATE_FORMAT(l.expected_in, '%%H:%%i') AS expected_in,
+                DATE_FORMAT(l.expected_out, '%%H:%%i') AS expected_out,
+                DATE_FORMAT(l.actual_in, '%%Y-%%m-%%d %%H:%%i') AS actual_in,
+                DATE_FORMAT(l.actual_out, '%%Y-%%m-%%d %%H:%%i') AS actual_out,
+                l.attendance_status
+            FROM employee_shift_logs l
+            INNER JOIN users u ON u.user_id = l.user_id
+        """
+        params = ()
+        if user_id is not None:
+            query += " WHERE l.user_id = %s"
+            params = (user_id,)
+        query += " ORDER BY l.shift_date DESC, l.updated_at DESC"
+        return self._execute_query(query, params if params else None, fetchall=True) or []
 
     def fetch_available_product_types(self):
         query = """
@@ -485,6 +660,7 @@ class DatabaseManager:
         status = 'AVAILABLE' if instant or duration_value == 0 else 'NOT_AVAILABLE'
 
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 for _ in range(quantity):
                     cursor.execute(
@@ -497,18 +673,19 @@ class DatabaseManager:
             self.conn.rollback()
             self._raise_error("Failed to add ice stock", exc)
 
-    def sell_stock_via_procedure(self, stock_id):
+    def sell_stock_via_procedure(self, stock_id, sold_by_user_id=None):
         if not isinstance(stock_id, int) or stock_id < 1:
             raise DatabaseError("Invalid stock identifier")
 
         if self.procedure_mode:
             try:
-                self._call_procedure("sp_sell_stock", (stock_id,))
+                self._call_procedure("sp_sell_stock", (stock_id, sold_by_user_id))
                 return
             except DatabaseError:
                 self.procedure_mode = False
 
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT status FROM ice_stocks WHERE stock_id = %s",
@@ -521,9 +698,9 @@ class DatabaseManager:
                     raise DatabaseError("Stock not available for sale")
 
                 cursor.execute(
-                    "INSERT INTO ice_sales (stock_id, price) "
-                    "SELECT stock_id, price FROM ice_stocks WHERE stock_id = %s",
-                    (stock_id,),
+                    "INSERT INTO ice_sales (stock_id, price, sold_by_user_id) "
+                    "SELECT stock_id, price, %s FROM ice_stocks WHERE stock_id = %s",
+                    (sold_by_user_id, stock_id),
                 )
                 cursor.execute(
                     "UPDATE ice_stocks SET status = 'SOLD' WHERE stock_id = %s",
@@ -538,10 +715,11 @@ class DatabaseManager:
     def authenticate_user(self, username: str, password: str) -> Optional[Tuple]:
         """Authenticate user and return full user row (user_id, username, password_hash, created_at) or None."""
         try:
+            self._ensure_connection_alive()
             password_hash = self._hash_password(password)
             with self.conn.cursor() as cursor:
                 cursor.execute(
-                    "SELECT user_id, username, password_hash, created_at FROM users WHERE username = %s AND password_hash = %s",
+                    "SELECT user_id, username, password_hash, created_at FROM users WHERE username = %s AND password_hash = %s AND is_active = 1",
                     (username, password_hash),
                 )
                 user = cursor.fetchone()
@@ -555,6 +733,7 @@ class DatabaseManager:
     def get_user_by_username(self, username: str) -> Optional[Tuple]:
         """Get user by username. Returns full user row (user_id, username, password_hash, created_at) or None."""
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT user_id, username, password_hash, created_at FROM users WHERE username = %s",
@@ -571,6 +750,7 @@ class DatabaseManager:
     def get_user_roles(self, user_id: int) -> List[str]:
         """Get roles for a user."""
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT r.role_name FROM user_roles ur JOIN roles r ON ur.role_id = r.role_id WHERE ur.user_id = %s",
@@ -580,10 +760,84 @@ class DatabaseManager:
         except pymysql.MySQLError as exc:
             self._raise_error("Failed to get user roles", exc)
 
+    def fetch_users_with_roles(self) -> List[Tuple]:
+        """Get all users with aggregated role names and active flag."""
+        query = """
+            SELECT
+                u.user_id,
+                u.username,
+                u.created_at,
+                u.is_active,
+                COALESCE(GROUP_CONCAT(r.role_name ORDER BY r.role_name SEPARATOR ', '), '') AS roles
+            FROM users u
+            LEFT JOIN user_roles ur ON ur.user_id = u.user_id
+            LEFT JOIN roles r ON r.role_id = ur.role_id
+            GROUP BY u.user_id, u.username, u.created_at, u.is_active
+            ORDER BY u.created_at DESC
+        """
+        return self._execute_query(query, fetchall=True) or []
+
+    def create_user_with_role(self, username: str, password: str, role_name: str) -> int:
+        """Create a user and assign a role. Returns new user_id."""
+        normalized_role = (role_name or "").strip().lower()
+        if normalized_role not in ("admin", "staff"):
+            raise DatabaseError("Invalid role. Allowed roles: admin, staff")
+
+        try:
+            self._ensure_connection_alive()
+            password_hash = self._hash_password(password)
+            with self.conn.cursor() as cursor:
+                cursor.execute("SELECT user_id FROM users WHERE username = %s", (username,))
+                if cursor.fetchone():
+                    raise DatabaseError("Username already exists")
+
+                cursor.execute(
+                    "INSERT INTO users (username, password_hash) VALUES (%s, %s)",
+                    (username, password_hash),
+                )
+                new_user_id = cursor.lastrowid
+
+                cursor.execute("SELECT role_id FROM roles WHERE role_name = %s", (normalized_role,))
+                role_row = cursor.fetchone()
+                if not role_row:
+                    raise DatabaseError("Role not found")
+
+                cursor.execute(
+                    "INSERT INTO user_roles (user_id, role_id) VALUES (%s, %s)",
+                    (new_user_id, role_row[0]),
+                )
+            self.conn.commit()
+            return int(new_user_id)
+        except pymysql.MySQLError as exc:
+            self.conn.rollback()
+            self._raise_error("Failed to create user account", exc)
+
+    def set_user_active(self, user_id: int, is_active: bool) -> None:
+        try:
+            self._execute_query(
+                "UPDATE users SET is_active = %s WHERE user_id = %s",
+                (1 if is_active else 0, user_id),
+                commit=True,
+            )
+        except DatabaseError as exc:
+            self._raise_error("Failed to update user status", exc)
+
+    def update_user_password(self, user_id: int, new_password: str) -> None:
+        try:
+            password_hash = self._hash_password(new_password)
+            self._execute_query(
+                "UPDATE users SET password_hash = %s WHERE user_id = %s",
+                (password_hash, user_id),
+                commit=True,
+            )
+        except DatabaseError as exc:
+            self._raise_error("Failed to reset user password", exc)
+
     # ==================== REPORTING METHODS ====================
     def fetch_revenue_summary(self) -> Dict[str, float]:
         """Get revenue summary: total, this_month, this_year."""
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 # Total revenue
                 cursor.execute("SELECT COALESCE(SUM(price), 0) FROM ice_sales")
@@ -612,6 +866,7 @@ class DatabaseManager:
     def fetch_stock_status_breakdown(self) -> Dict[str, int]:
         """Get count of stocks by status."""
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT status, COUNT(*) FROM ice_stocks GROUP BY status"
@@ -635,6 +890,7 @@ class DatabaseManager:
     def fetch_top_products(self, limit: int = 10) -> List[Dict]:
         """Get top selling products."""
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT s.product_name, COUNT(*) as sale_count, COALESCE(SUM(sl.price), 0) as total_revenue "
@@ -657,15 +913,30 @@ class DatabaseManager:
     def fetch_sales_by_date_range(self, start_date: str = None, end_date: str = None, limit: int = 30) -> List[Dict]:
         """Get daily sales summary."""
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
-                # Default to last 30 days
-                cursor.execute(
+                query = (
                     "SELECT DATE(sale_time) as sale_date, COUNT(*) as quantity, COALESCE(SUM(price), 0) as amount "
                     "FROM ice_sales "
-                    "WHERE sale_time >= DATE_SUB(NOW(), INTERVAL %s DAY) "
-                    "GROUP BY DATE(sale_time) ORDER BY sale_date DESC",
-                    (limit,),
                 )
+                params = []
+
+                if start_date and end_date:
+                    query += "WHERE DATE(sale_time) BETWEEN %s AND %s "
+                    params.extend([start_date, end_date])
+                elif start_date:
+                    query += "WHERE DATE(sale_time) >= %s "
+                    params.append(start_date)
+                elif end_date:
+                    query += "WHERE DATE(sale_time) <= %s "
+                    params.append(end_date)
+                else:
+                    # Default to rolling time window when dates are not supplied.
+                    query += "WHERE sale_time >= DATE_SUB(NOW(), INTERVAL %s DAY) "
+                    params.append(limit)
+
+                query += "GROUP BY DATE(sale_time) ORDER BY sale_date DESC"
+                cursor.execute(query, tuple(params))
                 results = cursor.fetchall()
                 return [
                     {
@@ -682,6 +953,7 @@ class DatabaseManager:
     def search_stocks_by_product(self, product_name: str) -> List[Tuple]:
         """Search stocks by product name."""
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT * FROM ice_stocks WHERE product_name LIKE %s",
@@ -694,6 +966,7 @@ class DatabaseManager:
     def filter_sales_by_price_range(self, min_price: float, max_price: float) -> List[Tuple]:
         """Filter sales within price range."""
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT * FROM ice_sales WHERE price >= %s AND price <= %s ORDER BY sale_time DESC",
@@ -706,6 +979,7 @@ class DatabaseManager:
     def filter_sales_by_date(self, start_date: str, end_date: str) -> List[Tuple]:
         """Filter sales within date range."""
         try:
+            self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT * FROM ice_sales WHERE DATE(sale_time) >= %s AND DATE(sale_time) <= %s ORDER BY sale_time DESC",

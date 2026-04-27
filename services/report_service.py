@@ -1,6 +1,5 @@
-from typing import Dict, List, Tuple, Any
-from datetime import datetime, timedelta
-from database import DatabaseManager, DatabaseError
+from typing import Dict, List, Any
+from database import DatabaseManager
 
 class ReportService:
     def __init__(self, database_manager: DatabaseManager):
@@ -12,20 +11,36 @@ class ReportService:
 
     def get_sales_trend(self, days: int = 30) -> List[Dict[str, Any]]:
         """Get sales trend for specified number of days."""
-        start_date = datetime.now() - timedelta(days=days)
-        end_date = datetime.now()
-        
-        sales = self._db.fetch_sales_by_date_range(start_date, end_date)
-        
-        # Group by date
-        trend_dict = {}
+        # Request the last `days` days from the DB. The DB method may return either
+        # a list of dicts (new format) or a list of tuples (legacy). Be tolerant.
+        sales = self._db.fetch_sales_by_date_range(None, None, days) or []
+
+        trend_dict: Dict[str, Dict[str, Any]] = {}
         for sale in sales:
-            sale_date = sale[4].date() if hasattr(sale[4], 'date') else sale[4]
-            if sale_date not in trend_dict:
-                trend_dict[sale_date] = {'date': str(sale_date), 'quantity': 0, 'amount': 0.0}
-            trend_dict[sale_date]['quantity'] += 1
-            trend_dict[sale_date]['amount'] += float(sale[3] or 0)
-        
+            # support dict rows
+            if isinstance(sale, dict):
+                sale_date = sale.get('date')
+                qty = int(sale.get('quantity', 0) or 0)
+                amount = float(sale.get('amount', 0) or 0.0)
+            else:
+                # legacy tuple formats: try common shapes
+                try:
+                    # (date, quantity, amount)
+                    sale_date = sale[0]
+                    qty = int(sale[1])
+                    amount = float(sale[2] or 0)
+                except Exception:
+                    # fallback: stringify entire row
+                    sale_date = str(sale)
+                    qty = 0
+                    amount = 0.0
+
+            key = str(sale_date)
+            if key not in trend_dict:
+                trend_dict[key] = {'date': key, 'quantity': 0, 'amount': 0.0}
+            trend_dict[key]['quantity'] += qty
+            trend_dict[key]['amount'] += amount
+
         return sorted(trend_dict.values(), key=lambda x: x['date'])
 
     def get_stock_status_report(self) -> Dict[str, int]:
@@ -39,15 +54,26 @@ class ReportService:
 
     def get_top_products(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get top products by sales."""
-        products = self._db.fetch_top_products(limit)
-        return [
-            {
-                'product_name': p[0],
-                'sale_count': int(p[1]),
-                'total_revenue': float(p[2] or 0),
-            }
-            for p in products
-        ]
+        products = self._db.fetch_top_products(limit) or []
+        out: List[Dict[str, Any]] = []
+        for p in products:
+            if isinstance(p, dict):
+                out.append({
+                    'product_name': p.get('product_name', 'Unknown'),
+                    'sale_count': int(p.get('sale_count', 0) or 0),
+                    'total_revenue': float(p.get('total_revenue', 0) or 0.0),
+                })
+            else:
+                # tuple-like
+                try:
+                    out.append({
+                        'product_name': p[0],
+                        'sale_count': int(p[1]),
+                        'total_revenue': float(p[2] or 0),
+                    })
+                except Exception:
+                    out.append({'product_name': str(p), 'sale_count': 0, 'total_revenue': 0.0})
+        return out
 
     def get_activity_summary(self) -> Dict[str, Any]:
         """Get activity summary."""

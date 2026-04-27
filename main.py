@@ -1,7 +1,6 @@
 import sys
-import tkinter.messagebox as messagebox
 
-import customtkinter as ctk
+from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
 
 from database import DatabaseManager, DatabaseError
 from services.inventory_service import InventoryService
@@ -11,27 +10,29 @@ from services.auth_service import AuthService
 from services.report_service import ReportService
 from views.main_window import IceTubigSystem
 from views.login_page import LoginPage
+from views.components.native_polish import FadeStackedWidget
 from styles import apply_app_style
 
 
-class IceTubigApp(ctk.CTk):
+class IceTubigApp(QMainWindow):
     """Main application window with login flow."""
     
     def __init__(self):
         super().__init__()
         
-        self.title("IceTubig - Ice Inventory Management System")
-        self.geometry("900x600")
+        self.setWindowTitle("IceTubig - Ice Inventory Management System")
+        self.resize(1100, 700)
+        self.setMinimumSize(900, 600)
         
         try:
             self.database_manager = DatabaseManager()
         except DatabaseError as exc:
-            error_msg = f"Database Connection Failed\n\n{str(exc)}\n\nPlease ensure MySQL is running and the ice_tubig database exists."
-            messagebox.showerror('Database Error', error_msg)
+            error_msg = f"Database Connection Failed\n\n{str(exc)}\nMySQL is not running or the ice_tubig database is not available."
+            QMessageBox.critical(self, 'Database Error', error_msg)
             sys.exit(1)
         except Exception as exc:
             error_msg = f"Unexpected Error\n\n{str(exc)}"
-            messagebox.showerror('Startup Error', error_msg)
+            QMessageBox.critical(self, 'Startup Error', error_msg)
             sys.exit(1)
         
         # Initialize services
@@ -42,34 +43,38 @@ class IceTubigApp(ctk.CTk):
         self.report_service = ReportService(self.database_manager)
         
         # Create UI tokens
-        self.tokens = apply_app_style(self, self.settings_service.get_theme())
+        self.tokens = apply_app_style(QApplication.instance(), self.settings_service.get_theme())
         
         # Create main container
-        self.container = ctk.CTkFrame(self)
-        self.container.pack(side="top", fill="both", expand=True)
-        self.container.grid_rowconfigure(0, weight=1)
-        self.container.grid_columnconfigure(0, weight=1)
+        self.container = FadeStackedWidget(self)
+        self.setCentralWidget(self.container)
         
         self.frames = {}
         self.current_user = None
-        
+        self.last_login_error = ''
         # Show login page
         
         self.show_login()
     
     def show_login(self):
         """Show login page."""
+        self.current_user = None
         # Clear existing frames
-        for widget in self.container.winfo_children():
-            widget.destroy()
+        while self.container.count():
+            widget = self.container.widget(0)
+            self.container.removeWidget(widget)
+            widget.deleteLater()
         
         login_frame = LoginPage(
+            self.container,
             self.auth_service,
             self.tokens,
             on_login_success=self.on_login_success,
-            master=self.container
+            initial_error=self.last_login_error,
         )
-        login_frame.grid(row=0, column=0, sticky="nsew")
+        self.container.addWidget(login_frame)
+        self.container.switch_to(login_frame)
+        self.last_login_error = ''
     
     def on_login_success(self, user):
         """Handle successful login."""
@@ -78,27 +83,51 @@ class IceTubigApp(ctk.CTk):
     
     def show_main_window(self):
         """Show main application window."""
-        # Clear container
-        for widget in self.container.winfo_children():
-            widget.destroy()
-        
-        # Create main window
-        main_window = IceTubigSystem(
-            self.inventory_service,
-            self.sales_service,
-            self.settings_service,
-            self.report_service,
-            master=self.container
-        )
-        main_window.grid(row=0, column=0, sticky="nsew")
-        
+        # Build the main window first, then swap UI. This prevents a blank screen
+        # if a page constructor fails during initialization.
+        try:
+            main_window = IceTubigSystem(
+                self.inventory_service,
+                self.sales_service,
+                self.settings_service,
+                self.auth_service,
+                self.report_service,
+                on_logout_callback=self.show_login,
+                tokens=self.tokens,
+                parent=self.container,
+                current_user=self.current_user,
+            )
+        except Exception as exc:
+            self.last_login_error = f'Unable to open dashboard: {exc}'
+            self.show_login()
+            return
+
+        # Clear container only after successful creation
+        while self.container.count():
+            widget = self.container.widget(0)
+            self.container.removeWidget(widget)
+            widget.deleteLater()
+        self.container.addWidget(main_window)
+        self.container.switch_to(main_window)
+
         # Store reference
         self.frames['main'] = main_window
 
+    def _on_close(self):
+        """Close app and release DB resources safely."""
+        if getattr(self, 'database_manager', None):
+            self.database_manager.close()
+
+    def closeEvent(self, event):
+        """Qt close hook: release resources then accept close."""
+        try:
+            self._on_close()
+        finally:
+            event.accept()
+
 
 if __name__ == '__main__':
-    ctk.set_appearance_mode('Dark')
-    ctk.set_default_color_theme('dark-blue')
-    
+    app_qt = QApplication(sys.argv)
     app = IceTubigApp()
-    app.mainloop()
+    app.show()
+    sys.exit(app_qt.exec())

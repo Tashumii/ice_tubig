@@ -1,6 +1,6 @@
 from typing import List
 
-from database import DatabaseManager, DatabaseError
+from database import DatabaseManager
 from models.dashboard import DashboardSummary, SalesComparisonSummary
 from models.stock import Stock
 
@@ -22,8 +22,8 @@ class InventoryService:
     def add_stock(self, quantity: int, product_name: str, kg: float, freeze_duration_hours: int, price: float, instant: bool) -> None:
         self._db.add_ice_stock_via_procedure(quantity, product_name, kg, freeze_duration_hours, price, instant)
 
-    def sell_stock(self, stock_id: int) -> None:
-        self._db.sell_stock_via_procedure(stock_id)
+    def sell_stock(self, stock_id: int, sold_by_user_id: int | None = None) -> None:
+        self._db.sell_stock_via_procedure(stock_id, sold_by_user_id)
 
     def get_sales_comparison(self) -> SalesComparisonSummary:
         raw = self._db.fetch_sales_comparison_summary() or (0.0, 0.0, 0.0, 0.0)
