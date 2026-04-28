@@ -83,8 +83,6 @@ class IceTubigApp(QMainWindow):
     
     def show_main_window(self):
         """Show main application window."""
-        # Build the main window first, then swap UI. This prevents a blank screen
-        # if a page constructor fails during initialization.
         try:
             main_window = IceTubigSystem(
                 self.inventory_service,

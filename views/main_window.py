@@ -1,5 +1,5 @@
-from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from styles import apply_app_style
 from services.inventory_service import InventoryService
@@ -80,6 +80,9 @@ class IceTubigSystem(QWidget):
         self.sidebar = QFrame(self)
         self.sidebar.setProperty("shell", True)
         self.sidebar.setStyleSheet(f"background:{self.tokens['bg_sidebar']};")
+        self.sidebar.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        self.sidebar.setMinimumWidth(180)
+        self.sidebar.setMaximumWidth(260)
         side_layout = QVBoxLayout(self.sidebar)
         side_layout.setContentsMargins(12, 14, 12, 12)
         side_layout.setSpacing(8)
@@ -126,6 +129,7 @@ class IceTubigSystem(QWidget):
     def _build_content(self, root_layout):
         self.content_frame = QFrame(self)
         self.content_frame.setProperty("shell", True)
+        self.content_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         content = QVBoxLayout(self.content_frame)
         content.setContentsMargins(10, 10, 10, 10)
         content.setSpacing(10)
@@ -150,8 +154,18 @@ class IceTubigSystem(QWidget):
         topbar.addWidget(profile)
         content.addWidget(topbar_frame)
         self.page_host = FadeStackedWidget(self.content_frame)
+        self.page_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         content.addWidget(self.page_host, 1)
-        root_layout.addWidget(self.content_frame, 1)
+
+        self.content_scroll = QScrollArea(self)
+        self.content_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.content_scroll.setWidgetResizable(True)
+        self.content_scroll.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.content_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.content_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.content_scroll.setStyleSheet("QScrollArea { border: none; }")
+        self.content_scroll.setWidget(self.content_frame)
+        root_layout.addWidget(self.content_scroll, 1)
 
     # ── Navigation ────────────────────────────────────────────────────────────
 

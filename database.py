@@ -191,12 +191,12 @@ class DatabaseManager:
         for statement in schema_statements:
             self._execute_safe_schema(statement)
 
-        # Seed default roles
+       
         self._execute_safe_schema(
             "INSERT IGNORE INTO roles (role_id, role_name, description) VALUES (1, 'admin', 'System administrator with full access'), (2, 'staff', 'Staff member with limited access')"
         )
 
-        # Seed default admin user
+
         admin_password_hash = self._hash_password("admin123")
         self._execute_safe_schema(
             "INSERT IGNORE INTO users (user_id, username, password_hash) VALUES (1, %s, %s)",
@@ -259,6 +259,103 @@ class DatabaseManager:
                 AND TIMESTAMPDIFF(HOUR, time_added, NOW()) >= (
                     SELECT freeze_duration_hours FROM system_settings WHERE id = 1
                 );
+            """,
+            """
+            DROP VIEW IF EXISTS vw_stock_availability;
+            CREATE VIEW vw_stock_availability AS
+            SELECT
+                stock_id,
+                product_name,
+                kg,
+                price,
+                freeze_duration_hours,
+                status,
+                time_added,
+                CASE
+                    WHEN status = 'NOT_AVAILABLE' THEN
+                        TIMESTAMPDIFF(
+                            MINUTE,
+                            NOW(),
+                            DATE_ADD(time_added, INTERVAL freeze_duration_hours HOUR)
+                        )
+                    ELSE 0
+                END AS minutes_until_available,
+                CASE
+                    WHEN status = 'NOT_AVAILABLE' THEN
+                        DATE_ADD(time_added, INTERVAL freeze_duration_hours HOUR)
+                    ELSE time_added
+                END AS available_at
+            FROM ice_stocks;
+            """,
+            """
+            DROP VIEW IF EXISTS vw_sales_with_stock;
+            CREATE VIEW vw_sales_with_stock AS
+            SELECT
+                s.sale_id,
+                s.stock_id,
+                i.product_name,
+                i.kg,
+                i.price AS stock_price,
+                s.price AS sale_price,
+                s.sale_time,
+                u.user_id AS sold_by_user_id,
+                u.username AS sold_by_username
+            FROM ice_sales s
+            JOIN ice_stocks i ON s.stock_id = i.stock_id
+            LEFT JOIN users u ON u.user_id = s.sold_by_user_id;
+            """,
+            """
+            DROP VIEW IF EXISTS vw_daily_sales_summary;
+            CREATE VIEW vw_daily_sales_summary AS
+            SELECT
+                DATE(sale_time) AS sale_date,
+                COUNT(*) AS sale_count,
+                COALESCE(SUM(price), 0) AS total_revenue,
+                COALESCE(AVG(price), 0) AS average_price
+            FROM ice_sales
+            GROUP BY DATE(sale_time)
+            ORDER BY sale_date DESC;
+            """,
+            """
+            DROP VIEW IF EXISTS vw_shift_attendance;
+            CREATE VIEW vw_shift_attendance AS
+            SELECT
+                l.log_id,
+                l.user_id,
+                u.username,
+                l.shift_date,
+                l.expected_in,
+                l.expected_out,
+                l.actual_in,
+                l.actual_out,
+                l.attendance_status,
+                l.created_at,
+                l.updated_at
+            FROM employee_shift_logs l
+            JOIN users u ON u.user_id = l.user_id;
+            """,
+            """
+            DROP VIEW IF EXISTS vw_available_products;
+            CREATE VIEW vw_available_products AS
+            SELECT
+                product_name,
+                kg,
+                price,
+                COUNT(*) AS available_count
+            FROM ice_stocks
+            WHERE status = 'AVAILABLE'
+            GROUP BY product_name, kg, price;
+            """,
+            """
+            DROP VIEW IF EXISTS vw_activity_log_summary;
+            CREATE VIEW vw_activity_log_summary AS
+            SELECT
+                event_type,
+                COUNT(*) AS events_count,
+                MIN(event_time) AS first_event,
+                MAX(event_time) AS latest_event
+            FROM ice_activity_log
+            GROUP BY event_type;
             """,
             """
             DROP PROCEDURE IF EXISTS sp_add_ice_stock;
@@ -570,10 +667,10 @@ class DatabaseManager:
                 l.log_id,
                 u.username,
                 l.shift_date,
-                DATE_FORMAT(l.expected_in, '%%H:%%i') AS expected_in,
-                DATE_FORMAT(l.expected_out, '%%H:%%i') AS expected_out,
-                DATE_FORMAT(l.actual_in, '%%Y-%%m-%%d %%H:%%i') AS actual_in,
-                DATE_FORMAT(l.actual_out, '%%Y-%%m-%%d %%H:%%i') AS actual_out,
+                DATE_FORMAT(l.expected_in, '%H:%i') AS expected_in,
+                DATE_FORMAT(l.expected_out, '%H:%i') AS expected_out,
+                DATE_FORMAT(l.actual_in, '%Y-%m-%d %H:%i') AS actual_in,
+                DATE_FORMAT(l.actual_out, '%Y-%m-%d %H:%i') AS actual_out,
                 l.attendance_status
             FROM employee_shift_logs l
             INNER JOIN users u ON u.user_id = l.user_id
@@ -711,7 +808,7 @@ class DatabaseManager:
             self.conn.rollback()
             self._raise_error("Failed to sell ice stock", exc)
 
-    # ==================== AUTHENTICATION METHODS ====================
+    
     def authenticate_user(self, username: str, password: str) -> Optional[Tuple]:
         """Authenticate user and return full user row (user_id, username, password_hash, created_at) or None."""
         try:

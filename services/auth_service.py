@@ -19,8 +19,6 @@ class AuthService:
         if not password or not password.strip():
             return None
 
-        # Let DatabaseError bubble up so UI can show a real message instead
-        # of silently presenting it as invalid credentials.
         user_row = self._db.authenticate_user(clean_username, password)
         if not user_row:
             return None

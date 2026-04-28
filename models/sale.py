@@ -53,5 +53,4 @@ class Sale:
         try:
             return datetime.fromisoformat(text)
         except ValueError:
-            # Keep a deterministic fallback instead of crashing list rendering.
             return datetime.now()

@@ -2,7 +2,7 @@ from typing import List
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPainter, QPen
-from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from models.sale import Sale
 from services.inventory_service import InventoryService
@@ -100,9 +100,27 @@ class DashboardPage(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(12)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        scroll = QScrollArea(self)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidgetResizable(True)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("QScrollArea { border: none; } QScrollBar:vertical { width: 0px; } QScrollBar:horizontal { height: 0px; }")
+
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(12)
+
+        scroll.setWidget(content)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(scroll)
+
+        root = content_layout
 
         # ── Header ───────────────────────────────────────────────────────────
         header_frame = QFrame(self)
@@ -199,6 +217,7 @@ class DashboardPage(QWidget):
             columns=("sale_id", "seller", "product", "shift", "price", "sold_at"),
             tokens=self.tokens,
         )
+        recent_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         recent_layout.addWidget(self.recent_sales_table)
         tables_wrap.addWidget(recent_card, 2)
 
@@ -211,8 +230,12 @@ class DashboardPage(QWidget):
             columns=("stock_id", "product", "status", "weight", "price"),
             tokens=self.tokens,
         )
+        stock_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         stock_layout.addWidget(self.stock_snapshot_table)
         tables_wrap.addWidget(stock_card, 1)
+
+        tables_wrap.setStretch(0, 2)
+        tables_wrap.setStretch(1, 1)
 
         root.addLayout(tables_wrap, 1)
 

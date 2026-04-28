@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QSizePolicy
 
 
 class ModernTable(QWidget):
@@ -31,8 +31,10 @@ class ModernTable(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         self.table = QTableWidget(self)
+        self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.table.setColumnCount(len(self.columns))
         self.table.setHorizontalHeaderLabels([c.replace("_", " ").title() for c in self.columns])
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -44,14 +46,18 @@ class ModernTable(QWidget):
         self.table.verticalHeader().setDefaultSectionSize(self.row_height)
         self.table.horizontalHeader().setFixedHeight(self.header_height)
         self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.table.horizontalHeader().setSortIndicatorShown(True)
         self.table.setSortingEnabled(True)
         self.table.itemSelectionChanged.connect(self._sync_selection)
 
-        for idx, col in enumerate(self.columns):
-            if col in self.column_widths:
-                self.table.setColumnWidth(idx, self.column_widths[col])
+        if self.column_widths:
+            self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+            for idx, col in enumerate(self.columns):
+                if col in self.column_widths:
+                    self.table.setColumnWidth(idx, self.column_widths[col])
+        else:
+            for idx in range(len(self.columns)):
+                self.table.horizontalHeader().setSectionResizeMode(idx, QHeaderView.ResizeMode.Stretch)
 
         self._apply_style()
         layout.addWidget(self.table)
@@ -80,7 +86,7 @@ class ModernTable(QWidget):
                 background: {self.tokens.get('table_header_bg', self.tokens.get('accent_1', '#E97845'))};
                 color: {self.tokens.get('table_header_text', '#ffffff')};
                 border: none;
-                padding: 8px;
+                padding: 10px;
                 font-weight: 700;
                 letter-spacing: 0.4px;
             }}

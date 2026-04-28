@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -55,7 +56,8 @@ class LoginPage(QWidget):
         outer.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         card = QFrame(self)
-        card.setFixedWidth(520)
+        card.setMaximumWidth(520)
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         card.setProperty("card", True)
         grid = QGridLayout(card)
         grid.setContentsMargins(24, 20, 24, 20)
@@ -76,9 +78,6 @@ class LoginPage(QWidget):
         self.password_entry.setPlaceholderText("Enter password")
         self.password_entry.setEchoMode(QLineEdit.EchoMode.Password)
         self.password_entry.setMaxLength(128)
-        self.remember_checkbox = QCheckBox("Remember me", card)
-        forgot = QLabel("Forgot?", card)
-        forgot.setStyleSheet(f"color:{self.tokens['accent_2']};")
         login_button = QPushButton("Login", card)
         login_button.clicked.connect(self._on_login_clicked)
 
@@ -89,8 +88,6 @@ class LoginPage(QWidget):
         grid.addWidget(self.username_entry, 4, 0, 1, 2)
         grid.addWidget(QLabel("Password", card), 5, 0, 1, 2)
         grid.addWidget(self.password_entry, 6, 0, 1, 2)
-        grid.addWidget(self.remember_checkbox, 7, 0)
-        grid.addWidget(forgot, 7, 1, alignment=Qt.AlignmentFlag.AlignRight)
         grid.addWidget(login_button, 8, 0, 1, 2)
 
         self.username_entry.returnPressed.connect(self._on_login_clicked)
