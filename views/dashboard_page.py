@@ -1,12 +1,12 @@
 from typing import List
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from models.sale import Sale
-from services.inventory_service import InventoryService
-from services.sales_service import SalesService
+from models.services.inventory_service import InventoryService
+from models.services.sales_service import SalesService
 from views.components.modern_table import ModernTable
 
 
@@ -98,6 +98,19 @@ class DashboardPage(QWidget):
         self.current_user = current_user
         self.setStyleSheet(f"background:{self.tokens['bg_base']};")
         self._build_ui()
+        
+        # Auto-refresh dashboard every 30 seconds to update freezing status
+        self.auto_refresh_timer = QTimer(self)
+        self.auto_refresh_timer.timeout.connect(self.refresh)
+        self.auto_refresh_timer.start(30000)  # 30 seconds
+        
+        # Initial refresh to populate data
+        self.refresh()
+    
+    def closeEvent(self, event):
+        """Stop the timer when the widget is closed."""
+        self.auto_refresh_timer.stop()
+        super().closeEvent(event)
 
     def _build_ui(self):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)

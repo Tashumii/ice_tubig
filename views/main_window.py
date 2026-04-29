@@ -2,11 +2,11 @@ from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from styles import apply_app_style
-from services.inventory_service import InventoryService
-from services.sales_service import SalesService
-from services.settings_service import SettingsService
-from services.auth_service import AuthService
-from services.report_service import ReportService
+from models.services.inventory_service import InventoryService
+from models.services.sales_service import SalesService
+from models.services.settings_service import SettingsService
+from models.services.auth_service import AuthService
+from models.services.report_service import ReportService
 from views.dashboard_page import DashboardPage
 from views.sales_page import SalesPage
 from views.settings_page import SettingsPage

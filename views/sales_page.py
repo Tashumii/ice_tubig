@@ -1,6 +1,6 @@
 from collections import defaultdict
 from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
-from services.sales_service import SalesService
+from models.services.sales_service import SalesService
 from views.components.modern_table import ModernTable
 
 
@@ -53,8 +53,12 @@ class SalesPage(QWidget):
         shift_layout.addWidget(self.shift_status_label, 1)
         self.on_site_btn = QPushButton("On Site", shift_control)
         self.on_site_btn.clicked.connect(self._clock_in)
+        # Only staff members should use clock in/out
+        self.on_site_btn.setEnabled(self._is_staff())
         self.out_btn = QPushButton("Time Out", shift_control)
         self.out_btn.clicked.connect(self._clock_out)
+        # Only staff members should use clock in/out
+        self.out_btn.setEnabled(self._is_staff())
         shift_layout.addWidget(self.on_site_btn)
         shift_layout.addWidget(self.out_btn)
         root.addWidget(shift_control)
@@ -150,6 +154,10 @@ class SalesPage(QWidget):
     def _is_admin(self) -> bool:
         roles = getattr(self.current_user, "roles", []) or []
         return "admin" in roles
+    
+    def _is_staff(self) -> bool:
+        roles = getattr(self.current_user, "roles", []) or []
+        return "staff" in roles
 
     # ── Data ─────────────────────────────────────────────────────────────────
 

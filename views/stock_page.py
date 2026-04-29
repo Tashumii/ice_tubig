@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QDoubleValidator, QIntValidator
 from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
-from services.inventory_service import InventoryService
+from models.services.inventory_service import InventoryService
 from models.stock import StockStatus
 from views.components.modern_table import ModernTable
 

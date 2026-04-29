@@ -3,11 +3,11 @@ import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
 
 from database import DatabaseManager, DatabaseError
-from services.inventory_service import InventoryService
-from services.sales_service import SalesService
-from services.settings_service import SettingsService
-from services.auth_service import AuthService
-from services.report_service import ReportService
+from models.services.inventory_service import InventoryService
+from models.services.sales_service import SalesService
+from models.services.settings_service import SettingsService
+from models.services.auth_service import AuthService
+from models.services.report_service import ReportService
 from views.main_window import IceTubigSystem
 from views.login_page import LoginPage
 from views.components.native_polish import FadeStackedWidget

@@ -4,8 +4,8 @@ from PyQt6.QtCore import QRegularExpression
 from PyQt6.QtGui import QRegularExpressionValidator
 from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
-from services.auth_service import AuthService
-from services.settings_service import SettingsService
+from models.services.auth_service import AuthService
+from models.services.settings_service import SettingsService
 from views.components.modern_table import ModernTable
 
 

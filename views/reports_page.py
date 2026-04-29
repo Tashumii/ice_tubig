@@ -1,6 +1,6 @@
 from views.components.modern_table import ModernTable
 from typing import Dict
-from services.report_service import ReportService
+from models.services.report_service import ReportService
 from datetime import datetime, timedelta
 
 from PyQt6.QtCore import Qt

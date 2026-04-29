@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from services.auth_service import AuthService
+from models.services.auth_service import AuthService
 from models.user import User
 from database import DatabaseError
 

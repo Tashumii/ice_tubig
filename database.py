@@ -510,23 +510,23 @@ class DatabaseManager:
 
     def fetch_sales_history(self):
         query = """
-            SELECT s.sale_id, s.stock_id, DATE_FORMAT(i.time_added, '%b %d, %Y %h:%i %p'),
-                   DATE_FORMAT(s.sale_time, '%b %d, %Y %h:%i %p'),
-                   i.product_name,
-                   s.price,
-                   i.kg,
-                   s.sold_by_user_id,
-                   COALESCE(u.username, 'Unassigned') AS sold_by_username,
-                   CASE
-                       WHEN HOUR(s.sale_time) BETWEEN 6 AND 13 THEN 'Morning Shift'
-                       WHEN HOUR(s.sale_time) BETWEEN 14 AND 21 THEN 'Afternoon Shift'
-                       ELSE 'Night Shift'
-                   END AS shift_name
-            FROM ice_sales s
-            INNER JOIN ice_stocks i ON s.stock_id = i.stock_id
-            LEFT JOIN users u ON u.user_id = s.sold_by_user_id
-            ORDER BY s.sale_time DESC
-        """
+        SELECT s.sale_id, s.stock_id, DATE_FORMAT(i.time_added, '%%b %%d, %%Y %%h:%%i %%p'),
+               DATE_FORMAT(s.sale_time, '%%b %%d, %%Y %%h:%%i %%p'),
+               i.product_name,
+               s.price,
+               i.kg,
+               s.sold_by_user_id,
+               COALESCE(u.username, 'Unassigned') AS sold_by_username,
+               CASE
+                   WHEN HOUR(s.sale_time) BETWEEN 6 AND 13 THEN 'Morning Shift'
+                   WHEN HOUR(s.sale_time) BETWEEN 14 AND 21 THEN 'Afternoon Shift'
+                   ELSE 'Night Shift'
+               END AS shift_name
+        FROM ice_sales s
+        INNER JOIN ice_stocks i ON s.stock_id = i.stock_id
+        LEFT JOIN users u ON u.user_id = s.sold_by_user_id
+        ORDER BY s.sale_time DESC
+    """
         return self._execute_query(query, fetchall=True)
 
     def fetch_employee_sales_summary(self):
@@ -614,35 +614,47 @@ class DatabaseManager:
         )
 
     def clock_in_user(self, user_id: int):
+        # Ensure system settings row exists with default shift times
+        self._execute_query(
+            "INSERT IGNORE INTO system_settings (id, shift_start_time, shift_end_time) VALUES (1, '08:00:00', '17:00:00')",
+            commit=True,
+        )
+        
         query = """
-            INSERT INTO employee_shift_logs (
-                user_id, shift_date, expected_in, expected_out, actual_in, attendance_status
-            )
-            VALUES (
-                %s,
-                CURRENT_DATE(),
-                (SELECT shift_start_time FROM system_settings WHERE id = 1),
-                (SELECT shift_end_time FROM system_settings WHERE id = 1),
-                NOW(),
-                CASE
-                    WHEN TIME(NOW()) <= (SELECT shift_start_time FROM system_settings WHERE id = 1)
-                    THEN 'ON_TIME'
-                    ELSE 'LATE'
-                END
-            )
-            ON DUPLICATE KEY UPDATE
-                actual_in = COALESCE(actual_in, VALUES(actual_in)),
-                expected_in = VALUES(expected_in),
-                expected_out = VALUES(expected_out),
-                attendance_status = CASE
-                    WHEN actual_in IS NULL AND TIME(NOW()) <= (SELECT shift_start_time FROM system_settings WHERE id = 1) THEN 'ON_TIME'
-                    WHEN actual_in IS NULL THEN 'LATE'
-                    ELSE attendance_status
-                END
-        """
+        INSERT INTO employee_shift_logs (
+            user_id, shift_date, expected_in, expected_out, actual_in, attendance_status
+        )
+        SELECT
+            %s,
+            CURRENT_DATE(),
+            s.shift_start_time,
+            s.shift_end_time,
+            NOW(),
+            CASE
+                WHEN TIME(NOW()) <= s.shift_start_time THEN 'ON_TIME'
+                ELSE 'LATE'
+            END
+        FROM system_settings s WHERE s.id = 1
+        ON DUPLICATE KEY UPDATE
+            actual_in = CASE
+                WHEN actual_in IS NULL THEN NOW()
+                ELSE actual_in
+            END,
+            attendance_status = CASE
+                WHEN actual_in IS NULL AND TIME(NOW()) <= expected_in THEN 'ON_TIME'
+                WHEN actual_in IS NULL THEN 'LATE'
+                ELSE attendance_status
+            END
+    """
         self._execute_query(query, (user_id,), commit=True)
 
     def clock_out_user(self, user_id: int):
+        # Ensure system settings row exists with default shift times
+        self._execute_query(
+            "INSERT IGNORE INTO system_settings (id, shift_start_time, shift_end_time) VALUES (1, '08:00:00', '17:00:00')",
+            commit=True,
+        )
+        
         query = """
             INSERT INTO employee_shift_logs (
                 user_id, shift_date, expected_in, expected_out, actual_out, attendance_status
