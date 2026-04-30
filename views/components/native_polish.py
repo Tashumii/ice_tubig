@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import QEasingCurve, QObject, QPropertyAnimation, Qt
+from PyQt6.QtCore import QEasingCurve, QObject, QPropertyAnimation, Qt, QParallelAnimationGroup, QPoint
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QFrame, QGraphicsDropShadowEffect, QGraphicsOpacityEffect, QStackedWidget, QWidget
 
@@ -78,33 +78,66 @@ def apply_card_polish(root: QWidget):
             root._elevation_refs.append(ElevationController(widget, rest_blur=8, hover_blur=12, rest_y=1, hover_y=2, alpha=24))
 
 
+class ButtonPressAnimation(QObject):
+    """Add press animation to buttons."""
+    
+    def __init__(self, button):
+        super().__init__(button)
+        self.button = button
+        self.original_style = button.styleSheet()
+        button.installEventFilter(self)
+    
+    def eventFilter(self, watched, event):
+        if watched is self.button:
+            if event.type() == event.Type.MouseButtonPress:
+                self.button.setStyleSheet(self.original_style + " QPushButton { transform: scale(0.95); }")
+            elif event.type() == event.Type.MouseButtonRelease:
+                self.button.setStyleSheet(self.original_style)
+        return super().eventFilter(watched, event)
+
+
 class FadeStackedWidget(QStackedWidget):
-    """QStackedWidget with lightweight fade transition."""
+    """QStackedWidget with smooth fade and slide transition."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._anim_refs = []
+        self._previous_index = 0
 
-    def switch_to(self, widget: QWidget, duration_ms: int = 180):
+    def switch_to(self, widget: QWidget, duration_ms: int = 300):
+        """Switch to widget with fade and slide animation."""
         if widget is None or widget is self.currentWidget():
             return
 
-        self.setCurrentWidget(widget)
-        effect = QGraphicsOpacityEffect(widget)
-        widget.setGraphicsEffect(effect)
-        effect.setOpacity(0.0)
+        # Get current and new index
+        new_index = self.indexOf(widget)
+        if new_index == -1:
+            return
+        
+        old_widget = self.currentWidget()
+        direction = 1 if new_index > self._previous_index else -1
+        self._previous_index = new_index
 
-        anim = QPropertyAnimation(effect, b"opacity", self)
-        anim.setDuration(duration_ms)
-        anim.setStartValue(0.0)
-        anim.setEndValue(1.0)
-        anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        # Set up new widget
+        self.setCurrentWidget(widget)
+        
+        # Create opacity effect for fade
+        opacity_effect = QGraphicsOpacityEffect(widget)
+        widget.setGraphicsEffect(opacity_effect)
+        opacity_effect.setOpacity(0.0)
+
+        # Create animations
+        fade_anim = QPropertyAnimation(opacity_effect, b"opacity", self)
+        fade_anim.setDuration(duration_ms)
+        fade_anim.setStartValue(0.0)
+        fade_anim.setEndValue(1.0)
+        fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
 
         def _cleanup():
             widget.setGraphicsEffect(None)
-            if anim in self._anim_refs:
-                self._anim_refs.remove(anim)
+            if fade_anim in self._anim_refs:
+                self._anim_refs.remove(fade_anim)
 
-        anim.finished.connect(_cleanup)
-        self._anim_refs.append(anim)
-        anim.start()
+        fade_anim.finished.connect(_cleanup)
+        self._anim_refs.append(fade_anim)
+        fade_anim.start()

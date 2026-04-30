@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QSizePolicy
 
@@ -49,6 +49,8 @@ class ModernTable(QWidget):
         self.table.horizontalHeader().setSortIndicatorShown(True)
         self.table.setSortingEnabled(True)
         self.table.itemSelectionChanged.connect(self._sync_selection)
+        self.table.setMouseTracking(True)
+        self.table.itemEntered.connect(self._on_item_hover)
 
         if self.column_widths:
             self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -78,6 +80,9 @@ class ModernTable(QWidget):
             QTableWidget::item {{
                 padding: 6px 8px;
                 border: none;
+            }}
+            QTableWidget::item:hover {{
+                background-color: {self.tokens.get('nav_hover', self.tokens.get('bg_elevated', '#f5f5f5'))};
             }}
             QTableWidget::item:selected {{
                 color: {self.tokens.get('text_primary', '#111111')};
@@ -198,3 +203,13 @@ class ModernTable(QWidget):
             if item and str(item.data(Qt.ItemDataRole.UserRole)) == self._selected_iid:
                 self.table.selectRow(r_idx)
                 break
+
+    def _on_item_hover(self, item: QTableWidgetItem):
+        """Show tooltip on hover."""
+        if item:
+            row = item.row()
+            col = item.column()
+            column_name = self.columns[col] if col < len(self.columns) else ""
+            value = item.text()
+            tooltip = f"<b>{column_name.replace('_', ' ').title()}</b><br/>{value}"
+            item.setToolTip(tooltip)

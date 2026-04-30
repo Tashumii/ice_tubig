@@ -10,27 +10,38 @@ class ReportService:
         return self._db.fetch_revenue_summary()
 
     def get_sales_trend(self, days: int = 30) -> List[Dict[str, Any]]:
-        """Get sales trend for specified number of days."""
-        # Request the last `days` days from the DB. The DB method may return either
-        # a list of dicts (new format) or a list of tuples (legacy). Be tolerant.
+        """Get daily sales trend aggregated by date.
+
+        Args:
+            days: Number of past days to include. Defaults to 30.
+
+        Returns:
+            List of dicts sorted ascending by date, each with keys:
+            'date' (str), 'quantity' (int), 'amount' (float).
+
+        Note:
+            Tolerates both dict rows (current DB driver) and tuple rows
+            (legacy driver pre-v2 migration). Malformed rows are silently
+            skipped to avoid breaking the chart over a single bad record.
+        """
+        # fetch_sales_by_date_range returns tuples on legacy DB driver (pre-v2 migration)
+        # TODO: Remove tuple support after migration complete - see JIRA-ICE-001
         sales = self._db.fetch_sales_by_date_range(None, None, days) or []
 
         trend_dict: Dict[str, Dict[str, Any]] = {}
         for sale in sales:
-            # support dict rows
             if isinstance(sale, dict):
                 sale_date = sale.get('date')
                 qty = int(sale.get('quantity', 0) or 0)
                 amount = float(sale.get('amount', 0) or 0.0)
             else:
-                # legacy tuple formats: try common shapes
+                # Legacy DB driver returns raw tuples before v2 schema migration
                 try:
-                    # (date, quantity, amount)
                     sale_date = sale[0]
                     qty = int(sale[1])
                     amount = float(sale[2] or 0)
                 except Exception:
-                    # fallback: stringify entire row
+                    # Silently skip malformed rows to avoid breaking entire trend chart
                     sale_date = str(sale)
                     qty = 0
                     amount = 0.0
@@ -64,7 +75,7 @@ class ReportService:
                     'total_revenue': float(p.get('total_revenue', 0) or 0.0),
                 })
             else:
-                # tuple-like
+                # Legacy DB driver returns raw tuples before v2 schema migration
                 try:
                     out.append({
                         'product_name': p[0],

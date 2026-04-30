@@ -8,6 +8,8 @@ from models.sale import Sale
 from models.services.inventory_service import InventoryService
 from models.services.sales_service import SalesService
 from views.components.modern_table import ModernTable
+from views.components.animated_charts import AnimatedPieChart
+from views.components.loading_widgets import LoadingSpinner
 
 
 class _MiniChart(QWidget):
@@ -200,6 +202,33 @@ class DashboardPage(QWidget):
         breakdown_layout.addWidget(self.breakdown_text)
         root.addWidget(breakdown_card)
 
+        # ── Pie Charts Row ────────────────────────────────────────────────────
+        charts_row = QHBoxLayout()
+        
+        # Stock Status Pie Chart
+        stock_chart_card = QFrame(self)
+        stock_chart_card.setProperty("card", True)
+        stock_chart_layout = QVBoxLayout(stock_chart_card)
+        stock_chart_title = QLabel('Stock Distribution', stock_chart_card)
+        stock_chart_title.setStyleSheet("font-size:15px; font-weight:700;")
+        stock_chart_layout.addWidget(stock_chart_title)
+        self.stock_pie_chart = AnimatedPieChart(self.tokens, stock_chart_card)
+        stock_chart_layout.addWidget(self.stock_pie_chart)
+        charts_row.addWidget(stock_chart_card)
+        
+        # Revenue by Product Pie Chart
+        revenue_chart_card = QFrame(self)
+        revenue_chart_card.setProperty("card", True)
+        revenue_chart_layout = QVBoxLayout(revenue_chart_card)
+        revenue_chart_title = QLabel('Revenue by Product', revenue_chart_card)
+        revenue_chart_title.setStyleSheet("font-size:15px; font-weight:700;")
+        revenue_chart_layout.addWidget(revenue_chart_title)
+        self.revenue_pie_chart = AnimatedPieChart(self.tokens, revenue_chart_card)
+        revenue_chart_layout.addWidget(self.revenue_pie_chart)
+        charts_row.addWidget(revenue_chart_card)
+        
+        root.addLayout(charts_row)
+
         # ── Weekly revenue chart ──────────────────────────────────────────────
         chart_card = QFrame(self)
         chart_card.setProperty("card", True)
@@ -295,6 +324,7 @@ class DashboardPage(QWidget):
             sales_history = [sale for sale in sales_history if sale.sold_by_username == username]
         self._draw_chart(sales_history, 30)
         self._refresh_data_tables(sales_history)
+        self._refresh_pie_charts(summary, sales_history)
 
     def _fmt(self, amount: float) -> str:
         try:
@@ -358,3 +388,40 @@ class DashboardPage(QWidget):
     def _is_admin(self) -> bool:
         roles = getattr(self.current_user, "roles", []) or []
         return "admin" in roles
+
+    def _refresh_pie_charts(self, summary, sales_history: List[Sale]):
+        """Update pie charts with current data."""
+        # Stock distribution pie chart
+        stock_data = [
+            ('Available', summary.available_count, self.tokens.get('success', '#7EDC98')),
+            ('Freezing', summary.freezing_count, self.tokens.get('accent_1', '#F28A4B')),
+            ('Sold', summary.sold_count, self.tokens.get('text_muted', '#8A8177')),
+        ]
+        self.stock_pie_chart.set_data(stock_data)
+        
+        # Revenue by product pie chart
+        from collections import defaultdict
+        product_revenue = defaultdict(float)
+        for sale in sales_history:
+            product_revenue[sale.product_name] += sale.price
+        
+        # Get top 5 products
+        sorted_products = sorted(product_revenue.items(), key=lambda x: x[1], reverse=True)[:5]
+        
+        colors = [
+            self.tokens.get('accent_1', '#F28A4B'),
+            self.tokens.get('accent_3', '#F5C27A'),
+            self.tokens.get('success', '#7EDC98'),
+            self.tokens.get('warning', '#F3B562'),
+            self.tokens.get('text_secondary', '#C8BFB2'),
+        ]
+        
+        revenue_data = [
+            (product, revenue, colors[i % len(colors)])
+            for i, (product, revenue) in enumerate(sorted_products)
+        ]
+        
+        if revenue_data:
+            self.revenue_pie_chart.set_data(revenue_data)
+        else:
+            self.revenue_pie_chart.set_data([('No Sales', 1, self.tokens.get('text_muted', '#8A8177'))])

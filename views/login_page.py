@@ -1,8 +1,7 @@
-from typing import Any, Callable, Dict, Optional
+from typing import Callable, Dict, Optional
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QFrame,
     QGridLayout,
     QLabel,
@@ -94,8 +93,8 @@ class LoginPage(QWidget):
         self.password_entry.returnPressed.connect(self._on_login_clicked)
         outer.addWidget(card)
 
-    def _on_login_clicked(self, event: Any = None):
-        """Handle login button click (event optional)."""
+    def _on_login_clicked(self):
+        """Handle login button click."""
         username_input = self.username_entry.text()
         password = self.password_entry.text()
         validation_error = self._validate_login_inputs(username_input, password)
@@ -122,7 +121,7 @@ class LoginPage(QWidget):
         else:
             self._show_error('Invalid username or password')
 
-    def _validate_login_inputs(self, username: str, password: str) -> str | None:
+    def _validate_login_inputs(self, username: str, password: str) -> Optional[str]:
         clean_username = (username or '').strip()
         if not clean_username:
             return 'Username is required'

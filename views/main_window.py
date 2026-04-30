@@ -2,6 +2,7 @@ from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from styles import apply_app_style
+from responsive import ResponsiveHelper
 from models.services.inventory_service import InventoryService
 from models.services.sales_service import SalesService
 from models.services.settings_service import SettingsService
@@ -48,6 +49,7 @@ class IceTubigSystem(QWidget):
         self.current_user = current_user
 
         self.tokens = tokens if tokens is not None else apply_app_style(self.window().windowHandle(), self.settings_service.get_theme())
+        self.device_type = ResponsiveHelper.get_device_type()
         self._build_ui()
 
         self.page_names = [label for label, _ in _NAV_ITEMS]
@@ -68,9 +70,15 @@ class IceTubigSystem(QWidget):
 
     def _build_ui(self):
         root = QHBoxLayout(self)
-        root.setContentsMargins(12, 12, 12, 12)
-        root.setSpacing(12)
-        self._build_sidebar(root)
+        spacing = ResponsiveHelper.get_spacing(self.device_type)
+        margins = ResponsiveHelper.get_margins(self.device_type)
+        root.setContentsMargins(*margins)
+        root.setSpacing(spacing)
+        
+        # Show sidebar only on larger screens
+        if ResponsiveHelper.should_show_sidebar(self.device_type):
+            self._build_sidebar(root)
+        
         self._build_content(root)
         apply_card_polish(self)
 
@@ -81,11 +89,19 @@ class IceTubigSystem(QWidget):
         self.sidebar.setProperty("shell", True)
         self.sidebar.setStyleSheet(f"background:{self.tokens['bg_sidebar']};")
         self.sidebar.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-        self.sidebar.setMinimumWidth(180)
-        self.sidebar.setMaximumWidth(260)
+        
+        # Responsive sidebar width
+        if self.device_type == "tablet":
+            self.sidebar.setMinimumWidth(140)
+            self.sidebar.setMaximumWidth(180)
+        else:
+            self.sidebar.setMinimumWidth(180)
+            self.sidebar.setMaximumWidth(260)
+        
         side_layout = QVBoxLayout(self.sidebar)
-        side_layout.setContentsMargins(12, 14, 12, 12)
-        side_layout.setSpacing(8)
+        spacing = ResponsiveHelper.get_spacing(self.device_type)
+        side_layout.setContentsMargins(spacing, spacing + 2, spacing, spacing)
+        side_layout.setSpacing(spacing - 2)
 
         # ── Logo block ────────────────────────────────────────────────────────
         brand_title = QLabel('ICETUBIG', self.sidebar)

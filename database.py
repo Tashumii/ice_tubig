@@ -1,5 +1,6 @@
 import pymysql
 import hashlib
+import os
 from pymysql.constants import CLIENT
 from datetime import datetime
 from typing import List, Tuple, Optional, Dict, Any
@@ -12,10 +13,10 @@ class DatabaseManager:
     def __init__(self):
         try:
             self.conn = pymysql.connect(
-                host="localhost",
-                user="root",
-                password="",
-                database="ice_tubig",
+                host=os.getenv("DB_HOST", "localhost"),
+                user=os.getenv("DB_USER", "root"),
+                password=os.getenv("DB_PASSWORD", ""),
+                database=os.getenv("DB_NAME", "ice_tubig"),
                 charset="utf8mb4",
                 client_flag=CLIENT.MULTI_STATEMENTS,
                 connect_timeout=5,
@@ -673,7 +674,7 @@ class DatabaseManager:
         """
         self._execute_query(query, (user_id,), commit=True)
 
-    def fetch_shift_logs(self, user_id: int | None = None):
+    def fetch_shift_logs(self, user_id: Optional[int] = None):
         query = """
             SELECT
                 l.log_id,
@@ -1061,12 +1062,14 @@ class DatabaseManager:
     # ==================== SEARCH/FILTER METHODS ====================
     def search_stocks_by_product(self, product_name: str) -> List[Tuple]:
         """Search stocks by product name."""
+        if not product_name or not isinstance(product_name, str):
+            return []
         try:
             self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT * FROM ice_stocks WHERE product_name LIKE %s",
-                    (f"%{product_name}%",),
+                    (f"%{product_name[:80]}%",)
                 )
                 return cursor.fetchall()
         except pymysql.MySQLError as exc:
@@ -1074,6 +1077,12 @@ class DatabaseManager:
 
     def filter_sales_by_price_range(self, min_price: float, max_price: float) -> List[Tuple]:
         """Filter sales within price range."""
+        if not isinstance(min_price, (int, float)) or not isinstance(max_price, (int, float)):
+            raise DatabaseError("Price range must be numeric")
+        if min_price < 0 or max_price < 0:
+            raise DatabaseError("Price cannot be negative")
+        if min_price > max_price:
+            raise DatabaseError("Minimum price cannot exceed maximum price")
         try:
             self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
@@ -1087,6 +1096,8 @@ class DatabaseManager:
 
     def filter_sales_by_date(self, start_date: str, end_date: str) -> List[Tuple]:
         """Filter sales within date range."""
+        if not start_date or not end_date:
+            raise DatabaseError("Start and end dates are required")
         try:
             self._ensure_connection_alive()
             with self.conn.cursor() as cursor:

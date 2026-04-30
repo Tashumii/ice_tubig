@@ -92,3 +92,6 @@ venv.bak/
 
 # Ignore SQL dumps
 *.sql
+
+# Keep schema file
+!ice_tubig.sql

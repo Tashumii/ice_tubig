@@ -1,6 +1,8 @@
 import sys
+import logging
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
+from PyQt6.QtCore import Qt
 
 from database import DatabaseManager, DatabaseError
 from models.services.inventory_service import InventoryService
@@ -12,6 +14,9 @@ from views.main_window import IceTubigSystem
 from views.login_page import LoginPage
 from views.components.native_polish import FadeStackedWidget
 from styles import apply_app_style
+from responsive import ResponsiveHelper
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class IceTubigApp(QMainWindow):
@@ -21,17 +26,31 @@ class IceTubigApp(QMainWindow):
         super().__init__()
         
         self.setWindowTitle("IceTubig - Ice Inventory Management System")
-        self.resize(1100, 700)
-        self.setMinimumSize(900, 600)
+        
+        # Responsive window sizing
+        device_type = ResponsiveHelper.get_device_type()
+        width, height = ResponsiveHelper.get_window_size(device_type)
+        self.resize(width, height)
+        
+        # Set minimum size based on device
+        if device_type == "mobile":
+            self.setMinimumSize(360, 640)
+        elif device_type == "tablet":
+            self.setMinimumSize(768, 600)
+        else:
+            self.setMinimumSize(900, 600)
         
         try:
             self.database_manager = DatabaseManager()
+            logging.info("Database connection established successfully")
         except DatabaseError as exc:
             error_msg = f"Database Connection Failed\n\n{str(exc)}\nMySQL is not running or the ice_tubig database is not available."
+            logging.error(f"Database connection failed: {exc}")
             QMessageBox.critical(self, 'Database Error', error_msg)
             sys.exit(1)
         except Exception as exc:
             error_msg = f"Unexpected Error\n\n{str(exc)}"
+            logging.exception("Unexpected error during startup")
             QMessageBox.critical(self, 'Startup Error', error_msg)
             sys.exit(1)
         
@@ -95,8 +114,10 @@ class IceTubigApp(QMainWindow):
                 parent=self.container,
                 current_user=self.current_user,
             )
+            logging.info(f"User {self.current_user.username} logged in successfully")
         except Exception as exc:
             self.last_login_error = f'Unable to open dashboard: {exc}'
+            logging.error(f"Failed to open dashboard: {exc}")
             self.show_login()
             return
 
@@ -113,8 +134,12 @@ class IceTubigApp(QMainWindow):
 
     def _on_close(self):
         """Close app and release DB resources safely."""
-        if getattr(self, 'database_manager', None):
-            self.database_manager.close()
+        try:
+            if getattr(self, 'database_manager', None):
+                self.database_manager.close()
+                logging.info("Database connection closed successfully")
+        except Exception as exc:
+            logging.error(f"Error closing database connection: {exc}")
 
     def closeEvent(self, event):
         """Qt close hook: release resources then accept close."""
@@ -125,7 +150,10 @@ class IceTubigApp(QMainWindow):
 
 
 if __name__ == '__main__':
+    # Enable high DPI scaling (PyQt6 does this automatically)
     app_qt = QApplication(sys.argv)
+    app_qt.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    
     app = IceTubigApp()
     app.show()
     sys.exit(app_qt.exec())

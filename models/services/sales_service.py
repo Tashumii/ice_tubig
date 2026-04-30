@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from database import DatabaseManager
 from models.sale import Sale
@@ -12,7 +12,7 @@ class SalesService:
         records = self._db.fetch_sales_history() or []
         return [Sale.from_row(row) for row in records]
 
-    def get_sales_history_by_user(self, username: str | None = None) -> List[Sale]:
+    def get_sales_history_by_user(self, username: Optional[str] = None) -> List[Sale]:
         sales = self.get_sales_history()
         if not username or username.lower() == "all":
             return sales
@@ -38,12 +38,16 @@ class SalesService:
         }
 
     def clock_in(self, user_id: int) -> None:
+        if not isinstance(user_id, int) or user_id < 1:
+            raise ValueError("Invalid user ID")
         self._db.clock_in_user(user_id)
 
     def clock_out(self, user_id: int) -> None:
+        if not isinstance(user_id, int) or user_id < 1:
+            raise ValueError("Invalid user ID")
         self._db.clock_out_user(user_id)
 
-    def get_shift_logs(self, user_id: int | None = None) -> List[dict]:
+    def get_shift_logs(self, user_id: Optional[int] = None) -> List[dict]:
         rows = self._db.fetch_shift_logs(user_id)
         return [
             {

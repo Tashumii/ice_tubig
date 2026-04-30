@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+from typing import Optional, List
 from database import DatabaseManager
 from models.user import User
 
@@ -51,7 +51,7 @@ class AuthService:
 
         return self._db.create_user_with_role(clean_username, clean_password, role_name)
 
-    def list_accounts(self, actor: User) -> list[dict]:
+    def list_accounts(self, actor: User) -> List[dict]:
         if not actor or not self.has_role(actor, "admin"):
             raise PermissionError("Only admin can view accounts.")
         rows = self._db.fetch_users_with_roles()

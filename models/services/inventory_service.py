@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from database import DatabaseManager
 from models.dashboard import DashboardSummary, SalesComparisonSummary
@@ -48,7 +48,7 @@ class InventoryService:
 
         self._db.add_ice_stock_via_procedure(quantity, clean_product, kg, freeze_duration_hours, price, instant)
 
-    def sell_stock(self, stock_id: int, sold_by_user_id: int | None = None) -> None:
+    def sell_stock(self, stock_id: int, sold_by_user_id: Optional[int] = None) -> None:
         if not isinstance(stock_id, int) or stock_id < 1:
             raise ValueError("Invalid stock identifier.")
         if sold_by_user_id is not None and (not isinstance(sold_by_user_id, int) or sold_by_user_id < 1):
