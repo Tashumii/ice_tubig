@@ -192,7 +192,3 @@ BEGIN
 END$$
 DELIMITER ;
 
--- Example query using INNER JOIN to get sales along with the stock information
--- SELECT s.sale_id, s.price, s.sale_time, i.time_added 
--- FROM ice_sales s 
--- INNER JOIN ice_stocks i ON s.stock_id = i.stock_id;

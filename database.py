@@ -187,6 +187,31 @@ class DatabaseManager:
                 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
             )
             """,
+            """
+            CREATE TABLE IF NOT EXISTS announcements (
+                announcement_id INT AUTO_INCREMENT PRIMARY KEY,
+                title VARCHAR(200) NOT NULL,
+                message TEXT NOT NULL,
+                created_by_user_id INT NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                is_active TINYINT(1) NOT NULL DEFAULT 1,
+                FOREIGN KEY (created_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                INDEX idx_created_at (created_at),
+                INDEX idx_is_active (is_active)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS announcement_recipients (
+                announcement_id INT NOT NULL,
+                user_id INT NOT NULL,
+                is_read TINYINT(1) NOT NULL DEFAULT 0,
+                read_at DATETIME NULL,
+                PRIMARY KEY (announcement_id, user_id),
+                FOREIGN KEY (announcement_id) REFERENCES announcements(announcement_id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                INDEX idx_user_unread (user_id, is_read)
+            )
+            """,
         ]
 
         for statement in schema_statements:
@@ -1108,3 +1133,93 @@ class DatabaseManager:
                 return cursor.fetchall()
         except pymysql.MySQLError as exc:
             self._raise_error("Failed to filter sales by date", exc)
+
+    # ==================== ANNOUNCEMENT METHODS ====================
+    def create_announcement(self, title: str, message: str, created_by_user_id: int, recipient_user_ids: List[int]) -> int:
+        """Create announcement and assign recipients. Returns announcement_id."""
+        try:
+            self._ensure_connection_alive()
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO announcements (title, message, created_by_user_id) VALUES (%s, %s, %s)",
+                    (title, message, created_by_user_id),
+                )
+                announcement_id = cursor.lastrowid
+                
+                if recipient_user_ids:
+                    cursor.executemany(
+                        "INSERT INTO announcement_recipients (announcement_id, user_id) VALUES (%s, %s)",
+                        [(announcement_id, uid) for uid in recipient_user_ids],
+                    )
+            self.conn.commit()
+            return int(announcement_id)
+        except pymysql.MySQLError as exc:
+            self.conn.rollback()
+            self._raise_error("Failed to create announcement", exc)
+
+    def fetch_announcements_for_user(self, user_id: int) -> List[Tuple]:
+        """Get all announcements for a specific user."""
+        query = """
+            SELECT
+                a.announcement_id,
+                a.title,
+                a.message,
+                a.created_at,
+                u.username AS created_by,
+                ar.is_read,
+                ar.read_at
+            FROM announcements a
+            JOIN users u ON u.user_id = a.created_by_user_id
+            JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
+            WHERE ar.user_id = %s AND a.is_active = 1
+            ORDER BY a.created_at DESC
+        """
+        return self._execute_query(query, (user_id,), fetchall=True) or []
+
+    def fetch_all_announcements(self) -> List[Tuple]:
+        """Get all announcements (admin view)."""
+        query = """
+            SELECT
+                a.announcement_id,
+                a.title,
+                a.message,
+                a.created_at,
+                u.username AS created_by,
+                a.is_active,
+                COUNT(ar.user_id) AS recipient_count,
+                SUM(ar.is_read) AS read_count
+            FROM announcements a
+            JOIN users u ON u.user_id = a.created_by_user_id
+            LEFT JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
+            GROUP BY a.announcement_id, a.title, a.message, a.created_at, u.username, a.is_active
+            ORDER BY a.created_at DESC
+        """
+        return self._execute_query(query, fetchall=True) or []
+
+    def mark_announcement_as_read(self, announcement_id: int, user_id: int) -> None:
+        """Mark announcement as read for a user."""
+        self._execute_query(
+            "UPDATE announcement_recipients SET is_read = 1, read_at = NOW() WHERE announcement_id = %s AND user_id = %s",
+            (announcement_id, user_id),
+            commit=True,
+        )
+
+    def delete_announcement(self, announcement_id: int) -> None:
+        """Soft delete announcement by setting is_active to 0."""
+        self._execute_query(
+            "UPDATE announcements SET is_active = 0 WHERE announcement_id = %s",
+            (announcement_id,),
+            commit=True,
+        )
+
+    def fetch_staff_users(self) -> List[Tuple]:
+        """Get all staff users (non-admin users)."""
+        query = """
+            SELECT DISTINCT u.user_id, u.username
+            FROM users u
+            JOIN user_roles ur ON ur.user_id = u.user_id
+            JOIN roles r ON r.role_id = ur.role_id
+            WHERE r.role_name = 'staff' AND u.is_active = 1
+            ORDER BY u.username
+        """
+        return self._execute_query(query, fetchall=True) or []

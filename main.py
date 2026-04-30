@@ -10,6 +10,7 @@ from models.services.sales_service import SalesService
 from models.services.settings_service import SettingsService
 from models.services.auth_service import AuthService
 from models.services.report_service import ReportService
+from models.services.announcement_service import AnnouncementService
 from views.main_window import IceTubigSystem
 from views.login_page import LoginPage
 from views.components.native_polish import FadeStackedWidget
@@ -60,6 +61,7 @@ class IceTubigApp(QMainWindow):
         self.settings_service = SettingsService(self.database_manager)
         self.auth_service = AuthService(self.database_manager)
         self.report_service = ReportService(self.database_manager)
+        self.announcement_service = AnnouncementService(self.database_manager)
         
         # Create UI tokens
         self.tokens = apply_app_style(QApplication.instance(), self.settings_service.get_theme())
@@ -109,6 +111,7 @@ class IceTubigApp(QMainWindow):
                 self.settings_service,
                 self.auth_service,
                 self.report_service,
+                self.announcement_service,
                 on_logout_callback=self.show_login,
                 tokens=self.tokens,
                 parent=self.container,
@@ -150,7 +153,6 @@ class IceTubigApp(QMainWindow):
 
 
 if __name__ == '__main__':
-    # Enable high DPI scaling (PyQt6 does this automatically)
     app_qt = QApplication(sys.argv)
     app_qt.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     

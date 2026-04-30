@@ -8,50 +8,55 @@ from typing import Dict
 TOKENS: Dict[str, Dict[str, str]] = {
     'dark': {
         # Surfaces (60% canvas, 30% secondary, 10% accent)
-        'bg_base': '#0B0A09',           # Canvas (60%)
-        'bg_surface': '#151311',        # Cards (30%)
-        'bg_elevated': '#1E1B18',       # Elevated panels
-        'bg_input': '#1A1714',          # Input fields - distinct from surface
-        'bg_sidebar': '#070605',        # Sidebar - darkest
+        'bg_base': '#111827',           # Dark gray canvas (not pure black)
+        'bg_surface': '#1F2937',        # Cards
+        'bg_elevated': '#374151',       # Elevated panels
+        'bg_input': '#1F2937',          # Input fields
+        'bg_sidebar': '#0F172A',        # Sidebar
         
-        # Brand (10% accent rule - single hue family)
-        'accent_1': '#FF9D5C',          # Primary CTA, active states
-        'accent_2': '#FF8A47',          # Hover states
-        'accent_3': '#FFB87A',          # Pressed states
+        # Brand (de-saturated for dark mode)
+        'accent_1': '#FB923C',          # Primary CTA
+        'accent_2': '#F97316',          # Hover states
+        'accent_3': '#FDBA74',          # Pressed states
         
-        # Semantic colors (limited palette)
-        'success': '#8FE6A8',
-        'warning': '#FFC670',
-        'danger': '#FF6B6B',
+        # Semantic colors (de-saturated)
+        'success': '#6EE7B7',
+        'warning': '#FCD34D',
+        'danger': '#F87171',
         
-        # Text hierarchy (high contrast)
-        'text_primary': '#FFFFFF',      # Pure white for maximum contrast
-        'text_secondary': '#D4C9BC',    # 70% opacity equivalent
-        'text_muted': '#9A8F84',        # 50% opacity equivalent
+        # Text hierarchy (off-white, not pure white)
+        'text_primary': '#E5E7EB',      # Off-white for reduced eye strain
+        'text_secondary': '#9CA3AF',    # Medium gray
+        'text_muted': '#6B7280',        # Muted gray
         
-        # Borders (visible contrast - 10%+ darker than bg)
-        'border': '#3A3530',            # Default border - clearly visible
-        'border_strong': '#4A453F',     # Emphasis border
-        'border_accent': '#FF9D5C44',   # Accent border with opacity
+        # Sidebar text (same as regular text in dark mode)
+        'sidebar_text_primary': '#E5E7EB',
+        'sidebar_text_secondary': '#9CA3AF',
+        'sidebar_text_muted': '#6B7280',
+        
+        # Borders (visible contrast)
+        'border': '#374151',            # Default border
+        'border_strong': '#4B5563',     # Emphasis border
+        'border_accent': '#FB923C44',   # Accent border with opacity
         
         # Component-specific
-        'surface_muted': '#1C1916',     # Distinct from bg_elevated
-        'input_border': '#4A453F',      # Strong border for inputs
-        'card_border': '#3A342E',       # Card borders - visible
+        'surface_muted': '#1F2937',     # Distinct from bg_elevated
+        'input_border': '#4B5563',      # Strong border for inputs
+        'card_border': '#374151',       # Card borders
         
         # Table
-        'table_header_bg': '#FF9D5C',
-        'table_header_text': '#0A0806',
-        'table_row_alt': '#1A1714',
-        'table_row_hover': '#1F1C19',
+        'table_header_bg': '#FB923C',
+        'table_header_text': '#111827',
+        'table_row_alt': '#1F2937',
+        'table_row_hover': '#374151',
         
         # Navigation
-        'nav_active_bg': '#1F1C19',
-        'nav_hover': '#1A1714',
+        'nav_active_bg': '#374151',
+        'nav_hover': '#1F2937',
         
         # Pills/Badges
-        'pill_bg': '#2A2420',
-        'pill_text': '#FFD4A6',
+        'pill_bg': '#374151',
+        'pill_text': '#FCD34D',
         
         # Shadows (subtle only - rgba(0,0,0,0.04-0.09))
         'shadow_xs': '0 1px 2px rgba(0, 0, 0, 0.08)',
@@ -80,50 +85,55 @@ TOKENS: Dict[str, Dict[str, str]] = {
     },
     'light': {
         # Surfaces (60-30-10 rule)
-        'bg_base': '#FAFAF9',           # Warm neutral canvas
+        'bg_base': '#F9FAFB',           # Light gray canvas
         'bg_surface': '#FFFFFF',        # Pure white cards
-        'bg_elevated': '#FFF6EF',       # Subtle warm tint
-        'bg_input': '#F5F3F0',          # Distinct input background
-        'bg_sidebar': '#1A1714',        # Dark sidebar for contrast
+        'bg_elevated': '#F3F4F6',       # Subtle gray tint
+        'bg_input': '#F9FAFB',          # Distinct input background
+        'bg_sidebar': '#111827',        # Dark sidebar for contrast
         
-        # Brand (single hue family)
-        'accent_1': '#E06A3C',          # Primary CTA
-        'accent_2': '#C85A2F',          # Hover
-        'accent_3': '#F28A4B',          # Pressed
+        # Brand (saturated for light mode)
+        'accent_1': '#EA580C',          # Primary CTA
+        'accent_2': '#C2410C',          # Hover
+        'accent_3': '#F97316',          # Pressed
         
         # Semantic colors
-        'success': '#2D8F4D',
-        'warning': '#D66A1F',
-        'danger': '#C93A3A',
+        'success': '#059669',
+        'warning': '#D97706',
+        'danger': '#DC2626',
         
         # Text hierarchy
-        'text_primary': '#1A1816',      # Near black
-        'text_secondary': '#4A4540',    # 70% opacity
-        'text_muted': '#7A7570',        # 50% opacity
+        'text_primary': '#111827',      # Near black
+        'text_secondary': '#4B5563',    # Medium gray
+        'text_muted': '#6B7280',        # Muted gray
+        
+        # Sidebar text (light colors for dark sidebar)
+        'sidebar_text_primary': '#E5E7EB',    # Light text for dark sidebar
+        'sidebar_text_secondary': '#9CA3AF',  # Medium gray for dark sidebar
+        'sidebar_text_muted': '#6B7280',      # Muted for dark sidebar
         
         # Borders (10%+ darker than background)
-        'border': '#D4C9BE',            # Clearly visible
-        'border_strong': '#B8ADA0',     # Emphasis
-        'border_accent': '#E06A3C44',
+        'border': '#E5E7EB',            # Clearly visible
+        'border_strong': '#D1D5DB',     # Emphasis
+        'border_accent': '#EA580C44',
         
         # Component-specific
-        'surface_muted': '#F5F3F0',
-        'input_border': '#C4B9AE',      # Strong input borders
-        'card_border': '#D2C5BA',
+        'surface_muted': '#F3F4F6',
+        'input_border': '#D1D5DB',      # Strong input borders
+        'card_border': '#E5E7EB',
         
         # Table
-        'table_header_bg': '#E06A3C',
+        'table_header_bg': '#EA580C',
         'table_header_text': '#FFFFFF',
-        'table_row_alt': '#F9F5F0',
-        'table_row_hover': '#FFF0E5',
+        'table_row_alt': '#F9FAFB',
+        'table_row_hover': '#FEF3C7',
         
         # Navigation
-        'nav_active_bg': '#FFE8D9',
-        'nav_hover': '#FFF0E5',
+        'nav_active_bg': '#FEF3C7',
+        'nav_hover': '#FEF9C3',
         
         # Pills/Badges
-        'pill_bg': '#FFE0CC',
-        'pill_text': '#6B3316',
+        'pill_bg': '#FEF3C7',
+        'pill_text': '#92400E',
         
         # Shadows (subtle)
         'shadow_xs': '0 1px 2px rgba(0, 0, 0, 0.04)',

@@ -30,22 +30,9 @@ class LoginPage(QWidget):
     ):
         super().__init__(master, *args, **kwargs)
         self.auth_service = auth_service
-        default_tokens = {
-            'bg_base': '#FAF6F1',
-            'bg_surface': '#FFFFFF',
-            'bg_input': '#F2EDE9',
-            'accent_1': '#E97845',
-            'accent_2': '#D96A3C',
-            'text_primary': '#1A1816',
-            'text_secondary': '#5D5651',
-            'text_muted': '#9D968E',
-            'border': '#E8E0D5',
-            'danger': '#E53935',
-        }
-        self.tokens = {**default_tokens, **(tokens or {})}
+        self.tokens = tokens or {}
         self.on_login_success = on_login_success
         self.initial_error = initial_error
-        self.setStyleSheet(f"background:{self.tokens['bg_base']};")
         self._build_ui()
 
     def _build_ui(self):
@@ -64,11 +51,11 @@ class LoginPage(QWidget):
         grid.setVerticalSpacing(6)
 
         title = QLabel("ICETUBIG", card)
-        title.setStyleSheet(f"color:{self.tokens['accent_1']}; font-size:34px; font-weight:700;")
+        title.setProperty("brandTitle", True)
         subtitle = QLabel("Inventory Management System", card)
-        subtitle.setStyleSheet(f"color:{self.tokens['text_secondary']}; font-size:11px;")
+        subtitle.setProperty("brandSub", True)
         self.error_label = QLabel(self.initial_error, card)
-        self.error_label.setStyleSheet(f"color:{self.tokens['danger']}; font-size:11px;")
+        self.error_label.setStyleSheet(f"color:{self.tokens.get('danger', '#DC2626')}; font-size:11px;")
 
         self.username_entry = QLineEdit(card)
         self.username_entry.setPlaceholderText("Enter username")

@@ -8,11 +8,13 @@ from models.services.sales_service import SalesService
 from models.services.settings_service import SettingsService
 from models.services.auth_service import AuthService
 from models.services.report_service import ReportService
+from models.services.announcement_service import AnnouncementService
 from views.dashboard_page import DashboardPage
 from views.sales_page import SalesPage
 from views.settings_page import SettingsPage
 from views.stock_page import StockPage
 from views.reports_page import ReportsPage
+from views.announcements_page import AnnouncementsPage
 from views.components.native_polish import FadeStackedWidget, apply_card_polish
 
 
@@ -22,7 +24,8 @@ _NAV_ITEMS = [
     ('Stocks',    1),
     ('Sales',     2),
     ('Reports',   3),
-    ('Settings',  4),
+    ('Announcements', 4),
+    ('Settings',  5),
 ]
 
 
@@ -34,6 +37,7 @@ class IceTubigSystem(QWidget):
         settings_service: SettingsService,
         auth_service: AuthService,
         report_service: ReportService = None,
+        announcement_service: AnnouncementService = None,
         on_logout_callback=None,
         tokens=None,
         current_user=None,
@@ -45,6 +49,7 @@ class IceTubigSystem(QWidget):
         self.settings_service   = settings_service
         self.auth_service       = auth_service
         self.report_service     = report_service
+        self.announcement_service = announcement_service
         self.on_logout_callback = on_logout_callback
         self.current_user = current_user
 
@@ -58,6 +63,7 @@ class IceTubigSystem(QWidget):
             lambda: StockPage(self.inventory_service, self.tokens, self.current_user, self.page_host),
             lambda: SalesPage(self.sales_service, self.tokens, self.current_user, self.page_host),
             lambda: ReportsPage(self.report_service, self.tokens, self.page_host),
+            lambda: AnnouncementsPage(self.announcement_service, self.current_user, self.tokens, self.page_host),
             lambda: SettingsPage(self.settings_service, self.auth_service, self.current_user, self._apply_theme, self.tokens, self.page_host),
         ]
         self.pages = [None] * len(self.page_names)
@@ -87,7 +93,15 @@ class IceTubigSystem(QWidget):
     def _build_sidebar(self, root_layout):
         self.sidebar = QFrame(self)
         self.sidebar.setProperty("shell", True)
-        self.sidebar.setStyleSheet(f"background:{self.tokens['bg_sidebar']};")
+        self.sidebar.setStyleSheet(f"""
+            QFrame#sidebar {{
+                background: {self.tokens['bg_sidebar']};
+            }}
+            QLabel {{
+                color: {self.tokens['sidebar_text_primary']};
+            }}
+        """)
+        self.sidebar.setObjectName("sidebar")
         self.sidebar.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         
         # Responsive sidebar width
@@ -106,8 +120,10 @@ class IceTubigSystem(QWidget):
         # ── Logo block ────────────────────────────────────────────────────────
         brand_title = QLabel('ICETUBIG', self.sidebar)
         brand_title.setProperty("brandTitle", True)
+        brand_title.setStyleSheet(f"color: {self.tokens['accent_1']}; font-size: 30px; font-weight: 800; letter-spacing: 0.5px;")
         brand_sub = QLabel('COLD CHAIN DASHBOARD', self.sidebar)
         brand_sub.setProperty("brandSub", True)
+        brand_sub.setStyleSheet(f"color: {self.tokens['sidebar_text_secondary']}; font-size: 11px; font-weight: 600; letter-spacing: 1.5px;")
         side_layout.addWidget(brand_title)
         side_layout.addWidget(brand_sub)
 
@@ -131,12 +147,29 @@ class IceTubigSystem(QWidget):
         side_layout.addWidget(logout_btn)
         version = QLabel('v2.0.0 · 2026', self.sidebar)
         version.setProperty("muted", True)
+        version.setStyleSheet(f"color: {self.tokens['sidebar_text_muted']}; font-size: 13px;")
         side_layout.addWidget(version)
         root_layout.addWidget(self.sidebar, 0)
 
     def _nav_item(self, label: str, idx: int) -> dict:
         button = QPushButton(label, self.sidebar)
         button.setProperty("nav", True)
+        button.setStyleSheet(f"""
+            QPushButton {{
+                text-align: left;
+                padding: 12px 14px;
+                border-radius: 6px;
+                background: transparent;
+                color: {self.tokens['sidebar_text_primary']};
+                border: 1px solid transparent;
+                font-size: 13px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background: {self.tokens['nav_hover']};
+                border: 1px solid {self.tokens['border']};
+            }}
+        """)
         button.clicked.connect(lambda: self.switch_page(idx))
         return {'button': button}
 
@@ -194,9 +227,36 @@ class IceTubigSystem(QWidget):
         for nav_idx, item in enumerate(self.navigation_buttons):
             active = nav_idx == index
             btn = item['button']
-            btn.setProperty("navActive", active)
-            btn.style().unpolish(btn)
-            btn.style().polish(btn)
+            if active:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        text-align: left;
+                        padding: 12px 14px;
+                        border-radius: 6px;
+                        background: {self.tokens['nav_active_bg']};
+                        color: {self.tokens['accent_1']};
+                        border: 1px solid {self.tokens['border_accent']};
+                        font-size: 13px;
+                        font-weight: 600;
+                    }}
+                """)
+            else:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        text-align: left;
+                        padding: 12px 14px;
+                        border-radius: 6px;
+                        background: transparent;
+                        color: {self.tokens['sidebar_text_primary']};
+                        border: 1px solid transparent;
+                        font-size: 13px;
+                        font-weight: 500;
+                    }}
+                    QPushButton:hover {{
+                        background: {self.tokens['nav_hover']};
+                        border: 1px solid {self.tokens['border']};
+                    }}
+                """)
 
         page = self._get_or_create_page(index)
         self.page_host.switch_to(page)
