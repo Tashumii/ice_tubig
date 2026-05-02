@@ -2,6 +2,7 @@ from views.components.modern_table import ModernTable
 from typing import Dict
 from models.services.report_service import ReportService
 from datetime import datetime, timedelta
+import qtawesome as qta
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
@@ -20,7 +21,7 @@ class ReportsPage(QWidget):
         self.tokens = tokens
         self.last_refresh_time = datetime.now() - timedelta(seconds=2)
         self.refresh_cooldown_seconds = 1
-        self.setStyleSheet(f"background:{self.tokens['bg_base']};")
+        self.setStyleSheet(f"background:transparent;")
         self._build_ui()
 
     def _build_ui(self):
@@ -37,6 +38,7 @@ class ReportsPage(QWidget):
         self.status_label.setStyleSheet(f"color:{self.tokens['danger']};")
         left.addWidget(title); left.addWidget(subtitle); left.addWidget(self.status_label)
         refresh_button = QPushButton('REFRESH', self)
+        refresh_button.setIcon(qta.icon('fa5s.sync-alt', color=self.tokens['accent_1']))
         refresh_button.clicked.connect(self.refresh)
         header.addLayout(left); header.addStretch(); header.addWidget(refresh_button)
         root.addLayout(header)
@@ -68,7 +70,7 @@ class ReportsPage(QWidget):
         card = self._section_card(parent, row=1, title='Stock Status', section_label='CURRENT')
         card.layout().setSpacing(8)
 
-        self.available_stock_label = self._metric_card(card, 'Available', '0', row=1, col=0, accent_color=self.tokens['success'])
+        self.available_stock_label = self._metric_card(card, 'Ready to Sell', '0', row=1, col=0, accent_color=self.tokens['success'])
         self.freezing_stock_label  = self._metric_card(card, 'Freezing',  '0', row=1, col=1, accent_color=self.tokens['accent_1'])
         self.sold_stock_label      = self._metric_card(card, 'Sold',      '0', row=1, col=2)
         self.total_stock_label     = self._metric_card(card, 'Total',     '0', row=1, col=3)
@@ -167,7 +169,7 @@ class ReportsPage(QWidget):
             self.total_label.setText('₱ 0.00')
             self.this_month_label.setText('₱ 0.00')
             self.this_year_label.setText('₱ 0.00')
-            errors.append('revenue')
+            errors.append('revenue summary')
 
         # Stock status
         try:
@@ -187,7 +189,7 @@ class ReportsPage(QWidget):
             trend = self.report_service.get_sales_trend(30) or []
             rows = [
                 {
-                    'date':     item.get('date', 'N/A'),
+                    'date':     item.get('date', 'No date'),
                     'quantity': item.get('quantity', 0),
                     'amount':   f"₱ {item.get('amount', 0):,.2f}",
                 }
@@ -208,7 +210,7 @@ class ReportsPage(QWidget):
             products = self.report_service.get_top_products(10) or []
             rows = [
                 {
-                    'product': p.get('product_name', 'Unknown'),
+                    'product': p.get('product_name', 'No product name'),
                     'sales':   p.get('sale_count', 0),
                     'revenue': f"₱ {p.get('total_revenue', 0):,.2f}",
                 }
@@ -217,11 +219,15 @@ class ReportsPage(QWidget):
             self.products_table.insert_rows(rows)
             self._set_table_height(self.products_table, len(rows))
             n = len(rows)
-            self._products_row_label.setText(f'Top {n}')
+            self._products_row_label.setText(f'Top {n}' if n else 'No products yet')
         except Exception:
             self.products_table.insert_rows([])
             self._set_table_height(self.products_table, 1)
             self._products_row_label.setText('')
             errors.append('top products')
 
-        self.status_label.setText(f"Some sections failed to load: {', '.join(errors)}" if errors else '')
+        self.status_label.setText(f"Could not load: {', '.join(errors)}" if errors else '')
+
+    def search(self, query: str):
+        self.sales_table.filter_rows(query)
+        self.products_table.filter_rows(query)

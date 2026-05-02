@@ -4,6 +4,7 @@ import os
 from pymysql.constants import CLIENT
 from datetime import datetime
 from typing import List, Tuple, Optional, Dict, Any
+from utils import humanize_status
 
 class DatabaseError(Exception):
     """General database exception for the IceTubig system."""
@@ -210,6 +211,22 @@ class DatabaseManager:
                 FOREIGN KEY (announcement_id) REFERENCES announcements(announcement_id) ON DELETE CASCADE,
                 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
                 INDEX idx_user_unread (user_id, is_read)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS admin_notifications (
+                notification_id INT AUTO_INCREMENT PRIMARY KEY,
+                event_type VARCHAR(40) NOT NULL,
+                user_id INT NULL,
+                title VARCHAR(160) NOT NULL,
+                message TEXT NOT NULL,
+                severity VARCHAR(20) NOT NULL DEFAULT 'info',
+                is_read TINYINT(1) NOT NULL DEFAULT 0,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+                INDEX idx_admin_notifications_created (created_at),
+                INDEX idx_admin_notifications_unread (is_read, created_at),
+                INDEX idx_admin_notifications_event (event_type)
             )
             """,
         ]
@@ -639,13 +656,128 @@ class DatabaseManager:
             commit=True,
         )
 
-    def clock_in_user(self, user_id: int):
-        # Ensure system settings row exists with default shift times
+    def _ensure_default_shift_settings(self):
         self._execute_query(
             "INSERT IGNORE INTO system_settings (id, shift_start_time, shift_end_time) VALUES (1, '08:00:00', '17:00:00')",
             commit=True,
         )
-        
+
+    def _fetch_username(self, user_id: int) -> str:
+        row = self._execute_query(
+            "SELECT username FROM users WHERE user_id = %s",
+            (user_id,),
+            fetchone=True,
+        )
+        return str(row[0]) if row and row[0] else f"User #{user_id}"
+
+    def _fetch_today_shift_state(self, user_id: int):
+        return self._execute_query(
+            """
+            SELECT
+                l.log_id,
+                u.username,
+                DATE_FORMAT(l.expected_in, '%%H:%%i') AS expected_in,
+                DATE_FORMAT(l.expected_out, '%%H:%%i') AS expected_out,
+                DATE_FORMAT(l.actual_in, '%%Y-%%m-%%d %%H:%%i') AS actual_in,
+                DATE_FORMAT(l.actual_out, '%%Y-%%m-%%d %%H:%%i') AS actual_out,
+                l.attendance_status
+            FROM employee_shift_logs l
+            INNER JOIN users u ON u.user_id = l.user_id
+            WHERE l.user_id = %s AND l.shift_date = CURRENT_DATE()
+            """,
+            (user_id,),
+            fetchone=True,
+        )
+
+    def _create_admin_notification(
+        self,
+        event_type: str,
+        user_id: Optional[int],
+        title: str,
+        message: str,
+        severity: str = "info",
+    ):
+        try:
+            self._execute_query(
+                """
+                INSERT INTO admin_notifications (event_type, user_id, title, message, severity)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    str(event_type or "SYSTEM")[:40],
+                    user_id,
+                    str(title or "System Notice")[:160],
+                    str(message or ""),
+                    str(severity or "info")[:20],
+                ),
+                commit=True,
+            )
+        except DatabaseError:
+            pass
+
+    def fetch_admin_notifications(self, limit: int = 20, unread_only: bool = False):
+        try:
+            clean_limit = max(1, min(int(limit or 20), 100))
+        except (TypeError, ValueError):
+            clean_limit = 20
+
+        query = """
+            SELECT
+                n.notification_id,
+                n.event_type,
+                COALESCE(u.username, 'System') AS username,
+                n.title,
+                n.message,
+                n.severity,
+                n.is_read,
+                DATE_FORMAT(n.created_at, '%%Y-%%m-%%d %%H:%%i') AS created_at
+            FROM admin_notifications n
+            LEFT JOIN users u ON u.user_id = n.user_id
+        """
+        params = []
+        if unread_only:
+            query += " WHERE n.is_read = 0"
+        query += " ORDER BY n.created_at DESC LIMIT %s"
+        params.append(clean_limit)
+        return self._execute_query(query, tuple(params), fetchall=True) or []
+
+    def count_unread_admin_notifications(self) -> int:
+        result = self._execute_query(
+            "SELECT COUNT(*) FROM admin_notifications WHERE is_read = 0",
+            fetchone=True,
+        )
+        return int(result[0] or 0) if result else 0
+
+    def mark_admin_notifications_read(self) -> None:
+        self._execute_query(
+            "UPDATE admin_notifications SET is_read = 1 WHERE is_read = 0",
+            commit=True,
+        )
+
+    def clock_in_user(self, user_id: int):
+        self._ensure_default_shift_settings()
+        username = self._fetch_username(user_id)
+        existing = self._fetch_today_shift_state(user_id)
+
+        if existing and existing[4] and not existing[5]:
+            self._create_admin_notification(
+                "ALREADY_ON_SITE",
+                user_id,
+                "Duplicate On Site Attempt",
+                f"{username} tried to clock in again while already On Site.",
+                "warning",
+            )
+            raise DatabaseError("You are already On Site for today's shift.")
+        if existing and existing[5]:
+            self._create_admin_notification(
+                "ALREADY_TIMED_OUT",
+                user_id,
+                "Clock In Blocked",
+                f"{username} tried to clock in after already timing out today.",
+                "warning",
+            )
+            raise DatabaseError("You already timed out today. Ask admin to adjust your shift if this is a mistake.")
+
         query = """
         INSERT INTO employee_shift_logs (
             user_id, shift_date, expected_in, expected_out, actual_in, attendance_status
@@ -673,31 +805,66 @@ class DatabaseManager:
             END
     """
         self._execute_query(query, (user_id,), commit=True)
+        state = self._fetch_today_shift_state(user_id)
+        if state:
+            status = str(state[6] or "")
+            late = status == "LATE"
+            self._create_admin_notification(
+                "LATE_CLOCK_IN" if late else "CLOCK_IN",
+                user_id,
+                "Late Clock In" if late else "Staff On Site",
+                f"{username} clocked in at {state[4] or 'Not recorded'} (expected {state[2] or 'Not recorded'}). Status: {humanize_status(status or 'ON_TIME')}.",
+                "warning" if late else "info",
+            )
 
     def clock_out_user(self, user_id: int):
-        # Ensure system settings row exists with default shift times
-        self._execute_query(
-            "INSERT IGNORE INTO system_settings (id, shift_start_time, shift_end_time) VALUES (1, '08:00:00', '17:00:00')",
-            commit=True,
-        )
-        
+        self._ensure_default_shift_settings()
+        username = self._fetch_username(user_id)
+        existing = self._fetch_today_shift_state(user_id)
+
+        if not existing or not existing[4]:
+            self._create_admin_notification(
+                "TIME_OUT_WITHOUT_CLOCK_IN",
+                user_id,
+                "Time Out Blocked",
+                f"{username} tried to time out without being On Site first.",
+                "warning",
+            )
+            raise DatabaseError("You must clock in before timing out.")
+        if existing[5]:
+            self._create_admin_notification(
+                "ALREADY_TIMED_OUT",
+                user_id,
+                "Duplicate Time Out Attempt",
+                f"{username} tried to time out again after {existing[5]}.",
+                "warning",
+            )
+            raise DatabaseError("You already timed out today.")
+
         query = """
-            INSERT INTO employee_shift_logs (
-                user_id, shift_date, expected_in, expected_out, actual_out, attendance_status
-            )
-            VALUES (
-                %s,
-                CURRENT_DATE(),
-                (SELECT shift_start_time FROM system_settings WHERE id = 1),
-                (SELECT shift_end_time FROM system_settings WHERE id = 1),
-                NOW(),
-                'COMPLETED'
-            )
-            ON DUPLICATE KEY UPDATE
+            UPDATE employee_shift_logs
+            SET
                 actual_out = NOW(),
-                attendance_status = 'COMPLETED'
+                attendance_status = CASE
+                    WHEN TIME(NOW()) < expected_out AND attendance_status = 'LATE' THEN 'LATE_EARLY_OUT'
+                    WHEN TIME(NOW()) < expected_out THEN 'EARLY_OUT'
+                    WHEN attendance_status = 'LATE' THEN 'LATE_COMPLETED'
+                    ELSE 'COMPLETED'
+                END
+            WHERE user_id = %s AND shift_date = CURRENT_DATE()
         """
         self._execute_query(query, (user_id,), commit=True)
+        state = self._fetch_today_shift_state(user_id)
+        if state:
+            status = str(state[6] or "")
+            early = "EARLY_OUT" in status
+            self._create_admin_notification(
+                "EARLY_TIME_OUT" if early else "CLOCK_OUT",
+                user_id,
+                "Early Time Out" if early else "Staff Time Out",
+                f"{username} timed out at {state[5] or 'Not recorded'} (expected {state[3] or 'Not recorded'}). Status: {humanize_status(status or 'COMPLETED')}.",
+                "warning" if early else "info",
+            )
 
     def fetch_shift_logs(self, user_id: Optional[int] = None):
         query = """
@@ -705,10 +872,10 @@ class DatabaseManager:
                 l.log_id,
                 u.username,
                 l.shift_date,
-                DATE_FORMAT(l.expected_in, '%H:%i') AS expected_in,
-                DATE_FORMAT(l.expected_out, '%H:%i') AS expected_out,
-                DATE_FORMAT(l.actual_in, '%Y-%m-%d %H:%i') AS actual_in,
-                DATE_FORMAT(l.actual_out, '%Y-%m-%d %H:%i') AS actual_out,
+                DATE_FORMAT(l.expected_in, '%%H:%%i') AS expected_in,
+                DATE_FORMAT(l.expected_out, '%%H:%%i') AS expected_out,
+                DATE_FORMAT(l.actual_in, '%%Y-%%m-%%d %%H:%%i') AS actual_in,
+                DATE_FORMAT(l.actual_out, '%%Y-%%m-%%d %%H:%%i') AS actual_out,
                 l.attendance_status
             FROM employee_shift_logs l
             INNER JOIN users u ON u.user_id = l.user_id
@@ -737,6 +904,7 @@ class DatabaseManager:
         if self.procedure_mode:
             try:
                 self._call_procedure("sp_refresh_ice_availability")
+                self.conn.commit()
                 return
             except DatabaseError:
                 self.procedure_mode = False
@@ -788,6 +956,7 @@ class DatabaseManager:
                     "sp_add_ice_stock",
                     (quantity, product_name.strip(), weight_kg, duration_value, price, int(bool(instant))),
                 )
+                self.conn.commit()
                 return
             except DatabaseError:
                 self.procedure_mode = False
@@ -811,10 +980,69 @@ class DatabaseManager:
     def sell_stock_via_procedure(self, stock_id, sold_by_user_id=None):
         if not isinstance(stock_id, int) or stock_id < 1:
             raise DatabaseError("Invalid stock identifier")
+        if sold_by_user_id is not None and (not isinstance(sold_by_user_id, int) or sold_by_user_id < 1):
+            raise DatabaseError("Invalid seller identifier")
+
+        stock = self._execute_query(
+            "SELECT product_name, kg, price, status FROM ice_stocks WHERE stock_id = %s",
+            (stock_id,),
+            fetchone=True,
+        )
+        if not stock:
+            raise DatabaseError("Stock not found")
+
+        product_name = str(stock[0] or "Ice")
+        kg = float(stock[1] or 0.0)
+        price = float(stock[2] or 0.0)
+        status = str(stock[3] or "")
+
+        seller_name = "Staff member"
+        if sold_by_user_id is not None:
+            seller_name = self._fetch_username(sold_by_user_id)
+
+        if status != 'AVAILABLE':
+            if sold_by_user_id is not None:
+                self._create_admin_notification(
+                    "SALE_BLOCKED",
+                    sold_by_user_id,
+                    "Sale Blocked",
+                    f"{seller_name} tried to sell stock #{stock_id}, but it is {humanize_status(status)}.",
+                    "warning",
+                )
+            raise DatabaseError("Stock not available for sale")
+
+        if sold_by_user_id is not None:
+            shift_state = self._fetch_today_shift_state(sold_by_user_id)
+            if not shift_state or not shift_state[4]:
+                self._create_admin_notification(
+                    "SALE_BLOCKED",
+                    sold_by_user_id,
+                    "Sale Blocked",
+                    f"{seller_name} tried to sell {product_name}, but they are not On Site.",
+                    "warning",
+                )
+                raise DatabaseError("You must be On Site before selling stock.")
+            if shift_state[5]:
+                self._create_admin_notification(
+                    "SALE_BLOCKED",
+                    sold_by_user_id,
+                    "Sale Blocked",
+                    f"{seller_name} tried to sell {product_name} after timing out at {shift_state[5]}.",
+                    "warning",
+                )
+                raise DatabaseError("You already timed out. You cannot sell after Time Out.")
 
         if self.procedure_mode:
             try:
                 self._call_procedure("sp_sell_stock", (stock_id, sold_by_user_id))
+                self.conn.commit()
+                self._create_admin_notification(
+                    "SALE_RECORDED",
+                    sold_by_user_id,
+                    "Sale Recorded",
+                    f"{seller_name} sold {product_name} ({kg:g} kg) for ₱ {price:,.2f}. Stock #{stock_id} is now Sold.",
+                    "success",
+                )
                 return
             except DatabaseError:
                 self.procedure_mode = False
@@ -823,13 +1051,13 @@ class DatabaseManager:
             self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(
-                    "SELECT status FROM ice_stocks WHERE stock_id = %s",
+                    "SELECT status FROM ice_stocks WHERE stock_id = %s FOR UPDATE",
                     (stock_id,),
                 )
-                record = cursor.fetchone()
-                if not record:
+                current_stock = cursor.fetchone()
+                if not current_stock:
                     raise DatabaseError("Stock not found")
-                if record[0] != 'AVAILABLE':
+                if current_stock[0] != 'AVAILABLE':
                     raise DatabaseError("Stock not available for sale")
 
                 cursor.execute(
@@ -842,6 +1070,16 @@ class DatabaseManager:
                     (stock_id,),
                 )
             self.conn.commit()
+            self._create_admin_notification(
+                "SALE_RECORDED",
+                sold_by_user_id,
+                "Sale Recorded",
+                f"{seller_name} sold {product_name} ({kg:g} kg) for ₱ {price:,.2f}. Stock #{stock_id} is now Sold.",
+                "success",
+            )
+        except DatabaseError:
+            self.conn.rollback()
+            raise
         except pymysql.MySQLError as exc:
             self.conn.rollback()
             self._raise_error("Failed to sell ice stock", exc)

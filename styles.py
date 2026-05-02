@@ -7,56 +7,56 @@ from typing import Dict
 
 TOKENS: Dict[str, Dict[str, str]] = {
     'dark': {
-        # Surfaces (60% canvas, 30% secondary, 10% accent)
-        'bg_base': '#111827',           # Dark gray canvas (not pure black)
-        'bg_surface': '#1F2937',        # Cards
-        'bg_elevated': '#374151',       # Elevated panels
-        'bg_input': '#1F2937',          # Input fields
-        'bg_sidebar': '#0F172A',        # Sidebar
+        # Surfaces (60% canvas, 30% secondary, 10% accent) - Modern Professional Navy
+        'bg_base': '#0A1220',           # Deep navy base
+        'bg_surface': '#141E2E',        # Card backgrounds with blue tint
+        'bg_elevated': '#1A2A42',       # Elevated panels
+        'bg_input': '#141E2E',          # Input fields
+        'bg_sidebar': '#0A1220',        # Sidebar matches base
         
-        # Brand (de-saturated for dark mode)
-        'accent_1': '#FB923C',          # Primary CTA
-        'accent_2': '#F97316',          # Hover states
-        'accent_3': '#FDBA74',          # Pressed states
+        # Brand - Modern Orange + Blue Complementary Pair
+        'accent_1': '#FF9500',          # Primary CTA - warm orange
+        'accent_2': '#3B82F6',          # Secondary - professional blue
+        'accent_3': '#FDB022',          # Pressed states - lighter orange
         
-        # Semantic colors (de-saturated)
-        'success': '#6EE7B7',
-        'warning': '#FCD34D',
-        'danger': '#F87171',
+        # Semantic colors - Professional palette
+        'success': '#10B981',           # Vibrant green
+        'warning': '#F59E0B',           # Professional amber
+        'danger': '#EF4444',            # Modern red
         
-        # Text hierarchy (off-white, not pure white)
-        'text_primary': '#E5E7EB',      # Off-white for reduced eye strain
+        # Text hierarchy (blue-tinted white for better readability)
+        'text_primary': '#F0F4F8',      # Cool white for reduced eye strain
         'text_secondary': '#9CA3AF',    # Medium gray
         'text_muted': '#6B7280',        # Muted gray
         
-        # Sidebar text (same as regular text in dark mode)
-        'sidebar_text_primary': '#E5E7EB',
+        # Sidebar text 
+        'sidebar_text_primary': '#F0F4F8',
         'sidebar_text_secondary': '#9CA3AF',
         'sidebar_text_muted': '#6B7280',
         
-        # Borders (visible contrast)
-        'border': '#374151',            # Default border
-        'border_strong': '#4B5563',     # Emphasis border
-        'border_accent': '#FB923C44',   # Accent border with opacity
+        # Borders (more visible with refined palette)
+        'border': '#2D3E52',            # Visible default border
+        'border_strong': '#3B4A5F',     # Emphasis border
+        'border_accent': '#FF950088',   # Orange accent border with opacity
         
-        # Component-specific
-        'surface_muted': '#1F2937',     # Distinct from bg_elevated
-        'input_border': '#4B5563',      # Strong border for inputs
-        'card_border': '#374151',       # Card borders
+        # Component-specific - Refined palette
+        'surface_muted': '#141E2E',     # Distinct from bg_elevated
+        'input_border': '#3B4A5F',      # Strong border for inputs
+        'card_border': '#2D3E52',       # Card borders
         
-        # Table
-        'table_header_bg': '#FB923C',
-        'table_header_text': '#111827',
-        'table_row_alt': '#1F2937',
-        'table_row_hover': '#374151',
+        # Table - Modern styling
+        'table_header_bg': '#FF9500',
+        'table_header_text': '#0A1220',
+        'table_row_alt': '#141E2E',
+        'table_row_hover': '#1A2A42',
         
-        # Navigation
-        'nav_active_bg': '#374151',
-        'nav_hover': '#1F2937',
+        # Navigation - Blue for active state
+        'nav_active_bg': '#3B82F6',
+        'nav_hover': '#1A2A42',
         
         # Pills/Badges
-        'pill_bg': '#374151',
-        'pill_text': '#FCD34D',
+        'pill_bg': '#1A2A42',
+        'pill_text': '#FF9500',
         
         # Shadows (subtle only - rgba(0,0,0,0.04-0.09))
         'shadow_xs': '0 1px 2px rgba(0, 0, 0, 0.08)',

@@ -1,6 +1,9 @@
 from collections import defaultdict
+from datetime import date
 from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
+import qtawesome as qta
 from models.services.sales_service import SalesService
+from utils import friendly_error, humanize_name, humanize_status
 from views.components.modern_table import ModernTable
 
 
@@ -12,7 +15,8 @@ class SalesPage(QWidget):
         self.current_user = current_user
         self._all_sales = []
         self._shift_logs = []
-        self.setStyleSheet(f"background:{self.tokens['bg_base']};")
+        self._search_query = ""
+        self.setStyleSheet(f"background:transparent;")
         self._build_ui()
 
     def _build_ui(self):
@@ -25,10 +29,11 @@ class SalesPage(QWidget):
         title = QLabel('Sales History', self)
         title.setStyleSheet("font-size:24px; font-weight:700;")
 
-        subtitle = QLabel('Revenue, transaction logs, and product-size breakdowns.', self)
+        subtitle = QLabel('Revenue, sales records, and product-size breakdowns.', self)
         subtitle.setStyleSheet(f"color:{self.tokens['text_secondary']};")
 
         refresh_button = QPushButton('REFRESH', self)
+        refresh_button.setIcon(qta.icon('fa5s.sync-alt', color=self.tokens['accent_1']))
         refresh_button.clicked.connect(self.refresh)
         self.employee_filter = QComboBox(self)
         self.employee_filter.currentTextChanged.connect(self._apply_sales_filter)
@@ -70,7 +75,7 @@ class SalesPage(QWidget):
         self._total_card = self._metric_card(kpi_layout, 'Total Revenue', '₱ 0.00', col=0, accent=True)
         self._count_card = self._metric_card(kpi_layout, 'Transactions', '0', col=1)
         self._avg_card = self._metric_card(kpi_layout, 'Avg. Sale', '₱ 0.00', col=2)
-        self._top_kg_card = self._metric_card(kpi_layout, 'Top Weight', 'N/A', col=3)
+        self._top_kg_card = self._metric_card(kpi_layout, 'Top Weight', 'Not recorded', col=3)
         root.addWidget(kpi_frame)
 
         # ── Size breakdown strip ─────────────────────────────────────────────
@@ -117,12 +122,12 @@ class SalesPage(QWidget):
         if self._is_admin():
             root.addWidget(self.shift_frame, 1)
 
-        # Attendance logs
+        # Attendance records
         self.attendance_frame = QFrame(self)
         self.attendance_frame.setProperty("card", True)
         attendance_layout = QVBoxLayout(self.attendance_frame)
         attendance_header = QHBoxLayout()
-        attendance_header.addWidget(QLabel("Shift Attendance Logs", self.attendance_frame))
+        attendance_header.addWidget(QLabel("Shift Attendance Records", self.attendance_frame))
         attendance_header.addStretch()
         self.attendance_count = QLabel("", self.attendance_frame)
         attendance_header.addWidget(self.attendance_count)
@@ -164,7 +169,7 @@ class SalesPage(QWidget):
     def refresh(self):
         schedule = self.sales_service.get_shift_schedule()
         self.shift_schedule_label.setText(
-            f"Shift In {schedule['shift_start_time']} · Out {schedule['shift_end_time']}"
+            f"Time In {schedule['shift_start_time']} · Time Out {schedule['shift_end_time']}"
         )
         self._all_sales = self.sales_service.get_sales_history()
         self._populate_employee_filter(self._all_sales)
@@ -198,6 +203,8 @@ class SalesPage(QWidget):
             username = getattr(self.current_user, "username", "")
             filtered_sales = [sale for sale in self._all_sales if sale.sold_by_username == username]
 
+        filtered_sales = self._filter_sales_by_query(filtered_sales)
+
         total_revenue = 0.0
         kg_revenue: dict[float, float] = defaultdict(float)
 
@@ -210,9 +217,9 @@ class SalesPage(QWidget):
                 'sold_at': sale.sold_at.strftime('%b %d, %Y %I:%M %p'),
                 'product': sale.product_name,
                 'price': f'₱ {sale.price:.2f}',
-                'weight': f'{sale.kg} kg',
-                'seller': sale.sold_by_username or 'Unassigned',
-                'shift': sale.shift_name or 'N/A',
+                'weight': f'{sale.kg:g} kg',
+                'seller': humanize_name(sale.sold_by_username),
+                'shift': humanize_name(sale.shift_name, "No shift"),
             })
             total_revenue += sale.price
             kg_revenue[sale.kg] += sale.price
@@ -227,7 +234,7 @@ class SalesPage(QWidget):
         self._total_card.setText(f'₱ {total_revenue:,.2f}')
         self._count_card.setText(str(count))
         self._avg_card.setText(f'₱ {avg:,.2f}')
-        self._top_kg_card.setText(f'{top_kg:g} kg' if top_kg is not None else 'N/A')
+        self._top_kg_card.setText(f'{top_kg:g} kg' if top_kg is not None else 'Not recorded')
 
         # Row count badge
         self._row_count_label.setText(f'{count} record{"s" if count != 1 else ""}')
@@ -238,6 +245,35 @@ class SalesPage(QWidget):
         else:
             self.kg_revenue_label.setText('No sales recorded yet.')
 
+    def _filter_sales_by_query(self, sales):
+        query = self._search_query.strip().lower()
+        if not query:
+            return sales
+
+        def matches(sale) -> bool:
+            values = (
+                str(sale.sale_id),
+                f"#{sale.sale_id}",
+                str(sale.stock_id),
+                f"#{sale.stock_id}",
+                sale.product_name,
+                f"{sale.price:.2f}",
+                f"{sale.kg:g}",
+                f"{sale.kg:g} kg",
+                humanize_name(sale.sold_by_username),
+                humanize_name(sale.shift_name, "No shift"),
+                sale.added.strftime('%b %d, %Y %I:%M %p'),
+                sale.sold_at.strftime('%b %d, %Y %I:%M %p'),
+            )
+            return any(query in str(value).lower() for value in values)
+
+        return [sale for sale in sales if matches(sale)]
+
+    def search(self, query: str):
+        """Search sales while respecting the current employee/user filter."""
+        self._search_query = query or ""
+        self._apply_sales_filter()
+
     def _refresh_shift_table(self):
         if not self._is_admin():
             return
@@ -245,12 +281,12 @@ class SalesPage(QWidget):
         for item in self.sales_service.get_employee_shift_summary():
             rows.append({
                 "employee": item["username"],
-                "shift": item["shift"],
+                "shift": humanize_name(item["shift"], "No shift"),
                 "sales_count": str(item["sales_count"]),
                 "revenue": f"₱ {item['total_revenue']:,.2f}",
             })
         self.shift_table.insert_rows(rows)
-        self.shift_count_label.setText(f"{len(rows)} shift rows")
+        self.shift_count_label.setText(f"{len(rows)} shift record{'s' if len(rows) != 1 else ''}")
 
     def _refresh_attendance_table(self):
         user_id = None if self._is_admin() else getattr(self.current_user, "user_id", None)
@@ -264,18 +300,20 @@ class SalesPage(QWidget):
                     "employee": log["username"],
                     "date": log["shift_date"],
                     "expected_in": log["expected_in"],
-                    "actual_in": log["actual_in"] or "N/A",
+                    "actual_in": log["actual_in"] or "Not recorded",
                     "expected_out": log["expected_out"],
-                    "actual_out": log["actual_out"] or "N/A",
-                    "status": log["status"],
+                    "actual_out": log["actual_out"] or "Not recorded",
+                    "status": humanize_status(log["status"]),
                 }
             )
         self.attendance_table.insert_rows(rows)
-        self.attendance_count.setText(f"{len(rows)} logs")
-        if rows:
-            self.shift_status_label.setText(f"Today: {rows[0]['status']}")
+        self.attendance_count.setText(f"{len(rows)} attendance record{'s' if len(rows) != 1 else ''}")
+        today = date.today().isoformat()
+        today_row = next((row for row in rows if row["date"] == today), None)
+        if today_row:
+            self.shift_status_label.setText(f"Today: {today_row['status']}")
         else:
-            self.shift_status_label.setText("Today: OFFSITE")
+            self.shift_status_label.setText("Today: Not On Site")
 
     def _clock_in(self):
         user_id = getattr(self.current_user, "user_id", None)
@@ -287,7 +325,7 @@ class SalesPage(QWidget):
             self.refresh()
             QMessageBox.information(self, "Shift Updated", "You are now marked as On Site.")
         except Exception as exc:
-            QMessageBox.critical(self, "Shift Error", str(exc))
+            QMessageBox.critical(self, "Shift Error", friendly_error(exc))
 
     def _clock_out(self):
         user_id = getattr(self.current_user, "user_id", None)
@@ -299,4 +337,4 @@ class SalesPage(QWidget):
             self.refresh()
             QMessageBox.information(self, "Shift Updated", "Time Out recorded.")
         except Exception as exc:
-            QMessageBox.critical(self, "Shift Error", str(exc))
+            QMessageBox.critical(self, "Shift Error", friendly_error(exc))

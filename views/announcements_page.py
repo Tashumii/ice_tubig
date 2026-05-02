@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
     QListWidget, QListWidgetItem, QMessageBox, QPushButton, QScrollArea,
     QTextEdit, QVBoxLayout, QWidget
 )
+import qtawesome as qta
 from models.services.announcement_service import AnnouncementService
 from models.user import User
 from views.components.native_polish import apply_card_polish
@@ -32,6 +33,7 @@ class AnnouncementsPage(QWidget):
 
         if self.is_admin:
             create_btn = QPushButton('+ Create Announcement')
+            create_btn.setIcon(qta.icon('fa5s.plus-circle', color=self.tokens.get('accent_1', '#FF9500')))
             create_btn.setProperty('primary', True)
             create_btn.clicked.connect(self._show_create_dialog)
             header.addWidget(create_btn)
@@ -52,6 +54,10 @@ class AnnouncementsPage(QWidget):
                 announcements = self.announcement_service.get_all_announcements(self.current_user)
                 for ann in announcements:
                     item = QListWidgetItem(self.list_widget)
+                    item.setData(
+                        Qt.ItemDataRole.UserRole,
+                        f"{ann.title} {ann.message} {ann.created_by} {ann.created_at}",
+                    )
                     widget = self._create_admin_announcement_widget(ann)
                     item.setSizeHint(widget.sizeHint())
                     self.list_widget.addItem(item)
@@ -60,12 +66,23 @@ class AnnouncementsPage(QWidget):
                 announcements = self.announcement_service.get_announcements_for_user(self.current_user)
                 for ann in announcements:
                     item = QListWidgetItem(self.list_widget)
+                    item.setData(
+                        Qt.ItemDataRole.UserRole,
+                        f"{ann.title} {ann.message} {ann.created_by} {ann.created_at}",
+                    )
                     widget = self._create_user_announcement_widget(ann)
                     item.setSizeHint(widget.sizeHint())
                     self.list_widget.addItem(item)
                     self.list_widget.setItemWidget(item, widget)
         except Exception as exc:
             QMessageBox.warning(self, 'Error', f'Failed to load announcements: {exc}')
+
+    def search(self, query: str):
+        text = (query or "").strip().lower()
+        for idx in range(self.list_widget.count()):
+            item = self.list_widget.item(idx)
+            haystack = str(item.data(Qt.ItemDataRole.UserRole) or "").lower()
+            item.setHidden(bool(text and text not in haystack))
 
     def _create_user_announcement_widget(self, announcement) -> QWidget:
         """Create widget for user view."""
@@ -84,7 +101,7 @@ class AnnouncementsPage(QWidget):
         if not announcement.is_read:
             unread_badge = QLabel('NEW')
             unread_badge.setProperty('pill', True)
-            unread_badge.setStyleSheet(f"background:{self.tokens.get('primary', '#007bff')};color:white;padding:2px 8px;border-radius:10px;")
+            unread_badge.setStyleSheet(f"background:{self.tokens.get('accent_2', '#3B82F6')};color:white;padding:2px 8px;border-radius:10px;font-weight:600;font-size:11px;")
             title_row.addWidget(unread_badge)
         
         title_row.addStretch()

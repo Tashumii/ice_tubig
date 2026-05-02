@@ -4,6 +4,30 @@ Utility functions for input validation and sanitization.
 import re
 from typing import Optional
 
+STATUS_LABELS = {
+    "AVAILABLE": "Ready to Sell",
+    "NOT_AVAILABLE": "Freezing",
+    "SOLD": "Sold",
+    "ON_TIME": "On Time",
+    "LATE": "Late",
+    "COMPLETED": "Completed",
+    "LATE_COMPLETED": "Late, Completed",
+    "EARLY_OUT": "Left Early",
+    "LATE_EARLY_OUT": "Late and Left Early",
+    "OFFSITE": "Not On Site",
+    "CLOCK_IN": "Marked On Site",
+    "LATE_CLOCK_IN": "Late Arrival",
+    "CLOCK_OUT": "Timed Out",
+    "EARLY_TIME_OUT": "Left Early",
+    "SALE_RECORDED": "Sale Recorded",
+    "SALE_BLOCKED": "Sale Blocked",
+    "ALREADY_ON_SITE": "Already On Site",
+    "ALREADY_TIMED_OUT": "Already Timed Out",
+    "TIME_OUT_WITHOUT_CLOCK_IN": "Time Out Blocked",
+}
+
+EMPTY_LABELS = {"", "N/A", "NONE", "NULL", "UNASSIGNED"}
+
 
 def sanitize_string(value: str, max_length: int = 255) -> str:
     """
@@ -26,6 +50,65 @@ def sanitize_string(value: str, max_length: int = 255) -> str:
     sanitized = sanitized[:max_length]
     
     return sanitized.strip()
+
+
+def humanize_status(value) -> str:
+    """Turn database/status constants into words people can read quickly."""
+    if value is None:
+        return "Not recorded"
+
+    raw = getattr(value, "value", value)
+    text = str(raw).strip()
+    if text.upper() in EMPTY_LABELS:
+        return "Not recorded"
+
+    key = text.upper().replace(" ", "_")
+    if key in STATUS_LABELS:
+        return STATUS_LABELS[key]
+
+    return text.replace("_", " ").title()
+
+
+def humanize_name(value, fallback: str = "Not assigned") -> str:
+    text = str(value or "").strip()
+    if text.upper() in EMPTY_LABELS:
+        return fallback
+    return text
+
+
+def clean_display_text(value) -> str:
+    """Clean technical constants inside longer user-facing messages."""
+    text = str(value or "").strip()
+    if not text:
+        return "No details provided."
+
+    for code in sorted(STATUS_LABELS, key=len, reverse=True):
+        text = re.sub(rf"\b{re.escape(code)}\b", STATUS_LABELS[code], text)
+
+    text = text.replace("N/A", "Not recorded")
+    text = text.replace("Unassigned", "Not assigned")
+    return text
+
+
+def friendly_error(value) -> str:
+    """Remove internal exception wrappers from messages shown in dialogs."""
+    text = clean_display_text(value)
+    prefixes = (
+        "Failed to clock in: ",
+        "Failed to clock out: ",
+        "Failed to sell ice stock: ",
+        "Database execution error: ",
+        "Database procedure error 'sp_sell_stock': ",
+    )
+    changed = True
+    while changed:
+        changed = False
+        for prefix in prefixes:
+            if text.startswith(prefix):
+                text = text[len(prefix):].strip()
+                changed = True
+
+    return text or "Something went wrong. Please try again."
 
 
 def validate_numeric(value: str, min_val: float = None, max_val: float = None) -> Optional[float]:

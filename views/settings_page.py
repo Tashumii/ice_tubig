@@ -3,6 +3,7 @@ import re
 from PyQt6.QtCore import QRegularExpression
 from PyQt6.QtGui import QRegularExpressionValidator
 from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
+import qtawesome as qta
 
 from models.services.auth_service import AuthService
 from models.services.settings_service import SettingsService
@@ -27,7 +28,7 @@ class SettingsPage(QWidget):
         self.on_save = on_save
         self.tokens = tokens
         self._selected_user_id = None
-        self.setStyleSheet(f"background:{self.tokens['bg_base']};")
+        self.setStyleSheet(f"background:transparent;")
         self._build_ui()
 
     def _build_ui(self):
@@ -45,6 +46,7 @@ class SettingsPage(QWidget):
         self.theme_menu.addItems(['Light', 'Dark'])
         grid.addWidget(self.theme_menu, 0, 1, 2, 1)
         self.save_button = QPushButton('SAVE CHANGES', card)
+        self.save_button.setIcon(qta.icon('fa5s.check-circle', color=self.tokens['success']))
         self.save_button.clicked.connect(self.save_settings)
         grid.addWidget(self.save_button, 2, 0, 1, 2)
         root.addWidget(title)
@@ -150,6 +152,10 @@ class SettingsPage(QWidget):
             self.shift_start_input.setText(str(schedule.get("shift_start_time", "08:00"))[:5])
             self.shift_end_input.setText(str(schedule.get("shift_end_time", "17:00"))[:5])
             self.refresh_accounts_table()
+
+    def search(self, query: str):
+        if self._is_admin() and hasattr(self, "accounts_table"):
+            self.accounts_table.filter_rows(query)
 
     def save_settings(self):
         selected = self.theme_menu.currentText().lower()

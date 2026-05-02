@@ -70,7 +70,7 @@ class ReportService:
         for p in products:
             if isinstance(p, dict):
                 out.append({
-                    'product_name': p.get('product_name', 'Unknown'),
+                    'product_name': p.get('product_name', 'No product name'),
                     'sale_count': int(p.get('sale_count', 0) or 0),
                     'total_revenue': float(p.get('total_revenue', 0) or 0.0),
                 })

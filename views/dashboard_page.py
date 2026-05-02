@@ -3,10 +3,12 @@ from typing import List
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+import qtawesome as qta
 
 from models.sale import Sale
 from models.services.inventory_service import InventoryService
 from models.services.sales_service import SalesService
+from utils import clean_display_text, humanize_name, humanize_status
 from views.components.modern_table import ModernTable
 from views.components.animated_charts import AnimatedPieChart
 from views.components.loading_widgets import LoadingSpinner
@@ -98,7 +100,7 @@ class DashboardPage(QWidget):
         self.sales_service = sales_service
         self.tokens = tokens
         self.current_user = current_user
-        self.setStyleSheet(f"background:{self.tokens['bg_base']};")
+        self.setStyleSheet(f"background:transparent;")
         self._build_ui()
         
         # Auto-refresh dashboard every 30 seconds to update freezing status
@@ -166,10 +168,10 @@ class DashboardPage(QWidget):
         inv_label.setStyleSheet(f"color:{self.tokens['text_secondary']}; font-size:10px; font-weight:700;")
         inv_layout.addWidget(inv_label, 0, 0, 1, 4)
 
-        self.available_label = self._metric_item(inv_layout, 'Available', 1, 0, accent=self.tokens['success'])
+        self.available_label = self._metric_item(inv_layout, 'Ready to Sell', 1, 0, accent=self.tokens['success'])
         self.freezing_label = self._metric_item(inv_layout, 'Freezing', 1, 1, accent=self.tokens['accent_1'])
         self.sold_label = self._metric_item(inv_layout, 'Sold', 1, 2)
-        self.activity_label = self._metric_item(inv_layout, 'Events', 1, 3)
+        self.activity_label = self._metric_item(inv_layout, 'Activity', 1, 3)
         root.addWidget(inv_card)
 
         # ── Sales comparison cards ────────────────────────────────────────────
@@ -186,6 +188,28 @@ class DashboardPage(QWidget):
         self.this_year_label = self._metric_item(cmp_layout, 'This Year', 1, 2, accent=self.tokens['accent_1'])
         self.last_year_label = self._metric_item(cmp_layout, 'Last Year', 1, 3)
         root.addWidget(cmp_card)
+
+        # ── Admin notifications ──────────────────────────────────────────────
+        self.notifications_card = QFrame(self)
+        self.notifications_card.setProperty("card", True)
+        notifications_layout = QVBoxLayout(self.notifications_card)
+        notifications_header = QHBoxLayout()
+        notifications_title = QLabel("Staff Activity Notifications", self.notifications_card)
+        notifications_title.setStyleSheet("font-size:15px; font-weight:700;")
+        self.notifications_count = QLabel("", self.notifications_card)
+        self.notifications_count.setStyleSheet(f"color:{self.tokens['text_secondary']};")
+        notifications_header.addWidget(notifications_title)
+        notifications_header.addStretch()
+        notifications_header.addWidget(self.notifications_count)
+        notifications_layout.addLayout(notifications_header)
+        self.notifications_table = ModernTable(
+            self.notifications_card,
+            columns=("time", "event", "staff", "details", "severity"),
+            tokens=self.tokens,
+        )
+        notifications_layout.addWidget(self.notifications_table)
+        if self._is_admin():
+            root.addWidget(self.notifications_card)
 
         # ── Sales breakdown ───────────────────────────────────────────────────
         breakdown_card = QFrame(self)
@@ -288,7 +312,7 @@ class DashboardPage(QWidget):
         frame.setProperty("card", True)
         layout = QVBoxLayout(frame)
         frame.setProperty("panel", True)
-        value = QLabel("N/A", frame)
+        value = QLabel("Not recorded", frame)
         value.setStyleSheet(f"font-size:22px; font-weight:700; color:{accent or self.tokens['text_primary']};")
         label = QLabel(title, frame)
         label.setStyleSheet(f"font-size:10px; color:{self.tokens['text_secondary']};")
@@ -325,6 +349,8 @@ class DashboardPage(QWidget):
         self._draw_chart(sales_history, 30)
         self._refresh_data_tables(sales_history)
         self._refresh_pie_charts(summary, sales_history)
+        if self._is_admin():
+            self._refresh_notifications()
 
     def _fmt(self, amount: float) -> str:
         try:
@@ -354,9 +380,9 @@ class DashboardPage(QWidget):
         for sale in sales[:8]:
             recent_rows.append({
                 "sale_id": f"#{sale.sale_id}",
-                "seller": sale.sold_by_username or "Unassigned",
+                "seller": humanize_name(sale.sold_by_username),
                 "product": sale.product_name,
-                "shift": sale.shift_name or "N/A",
+                "shift": humanize_name(sale.shift_name, "No shift"),
                 "price": self._fmt(sale.price),
                 "sold_at": sale.sold_at.strftime("%b %d %I:%M %p"),
             })
@@ -367,11 +393,32 @@ class DashboardPage(QWidget):
             stock_rows.append({
                 "stock_id": f"#{stock.stock_id}",
                 "product": stock.product_name,
-                "status": stock.status.value,
+                "status": humanize_status(stock.status),
                 "weight": f"{stock.kg:g} kg",
                 "price": self._fmt(stock.price),
             })
         self.stock_snapshot_table.insert_rows(stock_rows)
+
+    def _refresh_notifications(self):
+        notifications = self.sales_service.get_admin_notifications(10)
+        rows = []
+        for item in notifications:
+            rows.append({
+                "_iid": str(item["notification_id"]),
+                "time": item["created_at"],
+                "event": clean_display_text(item["title"]),
+                "staff": humanize_name(item["username"], "System"),
+                "details": clean_display_text(item["message"]),
+                "severity": humanize_status(item["severity"]),
+            })
+        self.notifications_table.insert_rows(rows)
+        self.notifications_count.setText(f"{len(rows)} recent notification{'s' if len(rows) != 1 else ''}")
+
+    def search(self, query: str):
+        self.recent_sales_table.filter_rows(query)
+        self.stock_snapshot_table.filter_rows(query)
+        if self._is_admin():
+            self.notifications_table.filter_rows(query)
 
     def _aggregate_daily_sales(self, sales: List[Sale], days: int = 30):
         from datetime import datetime, timedelta
@@ -393,7 +440,7 @@ class DashboardPage(QWidget):
         """Update pie charts with current data."""
         # Stock distribution pie chart
         stock_data = [
-            ('Available', summary.available_count, self.tokens.get('success', '#7EDC98')),
+            ('Ready to Sell', summary.available_count, self.tokens.get('success', '#7EDC98')),
             ('Freezing', summary.freezing_count, self.tokens.get('accent_1', '#F28A4B')),
             ('Sold', summary.sold_count, self.tokens.get('text_muted', '#8A8177')),
         ]
@@ -424,4 +471,4 @@ class DashboardPage(QWidget):
         if revenue_data:
             self.revenue_pie_chart.set_data(revenue_data)
         else:
-            self.revenue_pie_chart.set_data([('No Sales', 1, self.tokens.get('text_muted', '#8A8177'))])
+            self.revenue_pie_chart.set_data([('No sales yet', 1, self.tokens.get('text_muted', '#8A8177'))])

@@ -4,6 +4,26 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QSizePolicy
 
+COLUMN_LABELS = {
+    "sale_id": "Sale #",
+    "stock_id": "Stock #",
+    "user_id": "User #",
+    "sold_at": "Sold At",
+    "actual_in": "Time In",
+    "actual_out": "Time Out",
+    "expected_in": "Expected In",
+    "expected_out": "Expected Out",
+    "sales_count": "Sales",
+    "created_at": "Created",
+    "is_read": "Read",
+    "seller": "Staff",
+    "employee": "Staff",
+    "event": "Activity",
+    "severity": "Type",
+    "details": "Details",
+    "time": "Time",
+}
+
 
 class ModernTable(QWidget):
     def __init__(
@@ -36,7 +56,7 @@ class ModernTable(QWidget):
         self.table = QTableWidget(self)
         self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.table.setColumnCount(len(self.columns))
-        self.table.setHorizontalHeaderLabels([c.replace("_", " ").title() for c in self.columns])
+        self.table.setHorizontalHeaderLabels([COLUMN_LABELS.get(c, c.replace("_", " ").title()) for c in self.columns])
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -68,32 +88,39 @@ class ModernTable(QWidget):
         self.table.setStyleSheet(
             f"""
             QTableWidget {{
-                background: {self.tokens.get('bg_surface', '#ffffff')};
-                color: {self.tokens.get('text_primary', '#111111')};
-                gridline-color: {self.tokens.get('border', '#dddddd')};
-                border: 1px solid {self.tokens.get('card_border', self.tokens.get('border', '#dddddd'))};
-                border-radius: 12px;
-                selection-background-color: {self.tokens.get('pill_bg', self.tokens.get('bg_elevated', '#f5f5f5'))};
-                alternate-background-color: {self.tokens.get('table_row_alt', self.tokens.get('surface_muted', '#fafafa'))};
+                background: transparent;
+                color: {self.tokens.get('text_primary', '#F0F4F8')};
+                gridline-color: {self.tokens.get('border', '#2D3E52')};
+                border: 1px solid {self.tokens.get('card_border', '#2D3E52')};
+                border-radius: 8px;
+                selection-background-color: transparent;
+                alternate-background-color: transparent;
                 padding: 2px;
             }}
             QTableWidget::item {{
                 padding: 6px 8px;
                 border: none;
+                background: transparent;
             }}
             QTableWidget::item:hover {{
-                background-color: {self.tokens.get('nav_hover', self.tokens.get('bg_elevated', '#f5f5f5'))};
+                background-color: {self.tokens.get('table_row_hover', '#1A2A42')};
+                color: {self.tokens.get('accent_2', '#3B82F6')};
             }}
             QTableWidget::item:selected {{
-                color: {self.tokens.get('text_primary', '#111111')};
+                color: {self.tokens.get('accent_2', '#3B82F6')};
+                background: transparent;
+                font-weight: 600;
             }}
             QHeaderView::section {{
-                background: {self.tokens.get('table_header_bg', self.tokens.get('accent_1', '#E97845'))};
-                color: {self.tokens.get('table_header_text', '#ffffff')};
+                background: {self.tokens.get('table_header_bg', '#FF9500')};
+                color: {self.tokens.get('table_header_text', '#0A1220')};
                 border: none;
                 padding: 10px;
                 font-weight: 700;
                 letter-spacing: 0.4px;
+            }}
+            QHeaderView::section:hover {{
+                background: #E68A00;
             }}
             """
         )
@@ -188,6 +215,23 @@ class ModernTable(QWidget):
                 return True
         return False
 
+    def filter_rows(self, query: str):
+        text = (query or "").strip().lower()
+        for r_idx in range(self.table.rowCount()):
+            if not text:
+                self.table.setRowHidden(r_idx, False)
+                continue
+
+            values = []
+            for c_idx in range(self.table.columnCount()):
+                item = self.table.item(r_idx, c_idx)
+                if item:
+                    values.append(item.text())
+            self.table.setRowHidden(
+                r_idx,
+                text not in " ".join(values).lower(),
+            )
+
     def _sync_selection(self):
         selected = self.table.selectedItems()
         if not selected:
@@ -211,5 +255,6 @@ class ModernTable(QWidget):
             col = item.column()
             column_name = self.columns[col] if col < len(self.columns) else ""
             value = item.text()
-            tooltip = f"<b>{column_name.replace('_', ' ').title()}</b><br/>{value}"
+            label = COLUMN_LABELS.get(column_name, column_name.replace('_', ' ').title())
+            tooltip = f"<b>{label}</b><br/>{value}"
             item.setToolTip(tooltip)

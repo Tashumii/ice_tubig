@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+import qtawesome as qta
 from models.services.auth_service import AuthService
 from models.user import User
 from database import DatabaseError
@@ -65,6 +66,7 @@ class LoginPage(QWidget):
         self.password_entry.setEchoMode(QLineEdit.EchoMode.Password)
         self.password_entry.setMaxLength(128)
         login_button = QPushButton("Login", card)
+        login_button.setIcon(qta.icon('fa5s.sign-in-alt', color=self.tokens.get('accent_1', '#FF9500')))
         login_button.clicked.connect(self._on_login_clicked)
 
         grid.addWidget(title, 0, 0, 1, 2)
