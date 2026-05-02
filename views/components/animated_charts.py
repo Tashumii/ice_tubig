@@ -106,7 +106,7 @@ class AnimatedPieChart(QWidget):
         center_size = int(size * 0.5)
         center_x = x + (size - center_size) // 2
         center_y = y + (size - center_size) // 2
-        painter.setBrush(QColor(self.tokens.get('bg_surface', '#151311')))
+        painter.setBrush(QColor(self.tokens.get('bg_surface', '#081426')))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(center_x, center_y, center_size, center_size)
         
@@ -136,7 +136,7 @@ class AnimatedPieChart(QWidget):
             painter.drawRoundedRect(legend_x, y, 15, 15, 3, 3)
             
             # Label and value
-            painter.setPen(QColor(self.tokens.get('text_secondary', '#C8BFB2')))
+            painter.setPen(QColor(self.tokens.get('text_secondary', '#93C5E8')))
             percentage = (value / self.total * 100) if self.total > 0 else 0
             text = f"{label}: {int(value)} ({percentage:.1f}%)"
             painter.drawText(legend_x + 20, y + 12, text)
@@ -146,7 +146,7 @@ class AnimatedPieChart(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
-        painter.setPen(QColor(self.tokens.get('text_muted', '#8A8177')))
+        painter.setPen(QColor(self.tokens.get('text_muted', '#5F9CC0')))
         painter.setFont(QFont(self.tokens.get('font_family', 'Sans Serif'), 12))
         painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "No data available")
     

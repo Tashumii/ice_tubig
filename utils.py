@@ -1,8 +1,9 @@
 """
-Utility functions for input validation and sanitization.
+Utility functions for input validation, sanitization, and shared helpers.
 """
 import re
-from typing import Optional
+from datetime import datetime
+from typing import Optional, List
 
 STATUS_LABELS = {
     "AVAILABLE": "Ready to Sell",
@@ -93,7 +94,7 @@ def clean_display_text(value) -> str:
 def friendly_error(value) -> str:
     """Remove internal exception wrappers from messages shown in dialogs."""
     text = clean_display_text(value)
-    prefixes = (
+    _WRAPPER_PREFIXES = (
         "Failed to clock in: ",
         "Failed to clock out: ",
         "Failed to sell ice stock: ",
@@ -103,59 +104,102 @@ def friendly_error(value) -> str:
     changed = True
     while changed:
         changed = False
-        for prefix in prefixes:
+        for prefix in _WRAPPER_PREFIXES:
             if text.startswith(prefix):
                 text = text[len(prefix):].strip()
                 changed = True
-
     return text or "Something went wrong. Please try again."
 
 
-def validate_numeric(value: str, min_val: float = None, max_val: float = None) -> Optional[float]:
-    """
-    Validate and convert numeric input.
-    
-    Args:
-        value: Input string to validate
-        min_val: Minimum allowed value
-        max_val: Maximum allowed value
-        
-    Returns:
-        Validated numeric value or None if invalid
-    """
+def format_currency(amount: float) -> str:
+    """Format a numeric amount as Philippine peso currency string."""
+    try:
+        return f'₱ {float(amount):,.2f}'
+    except (TypeError, ValueError):
+        return '₱ 0.00'
+
+
+def parse_flexible_datetime(value, extra_formats: tuple = ()) -> datetime:
+    """Parse a datetime from various string formats, returning now() as fallback."""
+    if isinstance(value, datetime):
+        return value
+    if not value:
+        return datetime.now()
+    text = str(value).strip()
+    formats = (
+        '%b %d, %Y %I:%M %p',
+        '%Y-%m-%d %H:%M:%S',
+        '%Y-%m-%d %H:%M:%S.%f',
+    ) + extra_formats
+    for fmt in formats:
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return datetime.now()
+
+
+def has_role(user, role_name: str) -> bool:
+    """Check if a user object has the specified role."""
+    roles = getattr(user, "roles", []) or []
+    return role_name in roles
+
+
+def is_admin(user) -> bool:
+    """Check if user has admin role."""
+    return has_role(user, "admin")
+
+
+def is_staff(user) -> bool:
+    """Check if user has staff role."""
+    return has_role(user, "staff")
+
+
+def normalize_shift_time(value: str, label: str = "Shift") -> str:
+    """Validate and normalize a shift time string to HH:MM:SS format."""
+    text = (value or "").strip()
+    if not text:
+        raise ValueError(f"{label} time is required.")
+    if re.match(r"^\d{2}:\d{2}$", text):
+        text = f"{text}:00"
+    elif not re.match(r"^\d{2}:\d{2}:\d{2}$", text):
+        raise ValueError("Shift time must be HH:MM or HH:MM:SS format.")
+    parts = text.split(":")
+    if len(parts) != 3:
+        raise ValueError("Shift time must be HH:MM or HH:MM:SS format.")
+    try:
+        hours, minutes, seconds = [int(x) for x in parts]
+    except Exception as exc:
+        raise ValueError("Shift time must be a valid 24-hour time.") from exc
+    if not (0 <= hours <= 23 and 0 <= minutes <= 59 and 0 <= seconds <= 59):
+        raise ValueError("Shift time must be a valid 24-hour time.")
+    return text
+
+
+def validate_float_range(value: str, min_val: float = None, max_val: float = None) -> Optional[float]:
+    """Validate and convert string to float within an optional range. Returns None if invalid."""
     try:
         num = float(value)
-        
         if min_val is not None and num < min_val:
             return None
         if max_val is not None and num > max_val:
             return None
-            
         return num
     except (ValueError, TypeError):
         return None
 
 
-def validate_integer(value: str, min_val: int = None, max_val: int = None) -> Optional[int]:
-    """
-    Validate and convert integer input.
-    
-    Args:
-        value: Input string to validate
-        min_val: Minimum allowed value
-        max_val: Maximum allowed value
-        
-    Returns:
-        Validated integer value or None if invalid
-    """
+def validate_int_range(value: str, min_val: int = None, max_val: int = None) -> Optional[int]:
+    """Validate and convert string to int within an optional range. Returns None if invalid."""
     try:
         num = int(value)
-        
         if min_val is not None and num < min_val:
             return None
         if max_val is not None and num > max_val:
             return None
-            
         return num
     except (ValueError, TypeError):
         return None

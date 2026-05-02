@@ -78,40 +78,69 @@ CREATE PROCEDURE sp_add_ice_stock(
 BEGIN
     DECLARE counter INT DEFAULT 0;
     DECLARE target_status ENUM('NOT_AVAILABLE', 'AVAILABLE', 'SOLD');
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION 
+    BEGIN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error adding ice stock. Transaction rolled back.';
+    END;
+
+    START TRANSACTION;
     SET target_status = IF(p_instant OR p_freeze_duration_hours = 0, 'AVAILABLE', 'NOT_AVAILABLE');
     WHILE counter < p_qty DO
         INSERT INTO ice_stocks (status, product_name, kg, freeze_duration_hours, price)
         VALUES (target_status, p_product_name, p_kg, IF(p_instant, 0, p_freeze_duration_hours), p_price);
         SET counter = counter + 1;
     END WHILE;
+    COMMIT;
 END$$
 
 DROP PROCEDURE IF EXISTS sp_sell_stock$$
 CREATE PROCEDURE sp_sell_stock(IN p_stock_id INT)
 BEGIN
     DECLARE v_status ENUM('NOT_AVAILABLE', 'AVAILABLE', 'SOLD');
-    DECLARE EXIT HANDLER FOR NOT FOUND SET v_status = NULL;
-    SELECT status INTO v_status FROM ice_stocks WHERE stock_id = p_stock_id;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION 
+    BEGIN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error processing sale. Transaction rolled back.';
+    END;
+
+    START TRANSACTION;
+    SELECT status INTO v_status FROM ice_stocks WHERE stock_id = p_stock_id FOR UPDATE;
+    
     IF v_status IS NULL THEN
+        ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Stock not found';
     ELSEIF v_status != 'AVAILABLE' THEN
+        ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Stock not available for sale';
     ELSE
         INSERT INTO ice_sales (stock_id, price)
         SELECT stock_id, price FROM ice_stocks WHERE stock_id = p_stock_id;
+        
         UPDATE ice_stocks SET status = 'SOLD' WHERE stock_id = p_stock_id;
+        COMMIT;
     END IF;
 END$$
 
 DROP PROCEDURE IF EXISTS sp_refresh_ice_availability$$
 CREATE PROCEDURE sp_refresh_ice_availability()
 BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION 
+    BEGIN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error refreshing availability. Transaction rolled back.';
+    END;
+
+    START TRANSACTION;
     UPDATE ice_stocks
     SET status = 'AVAILABLE'
     WHERE status = 'NOT_AVAILABLE'
     AND TIMESTAMPDIFF(HOUR, time_added, NOW()) >= (
         SELECT freeze_duration_hours FROM system_settings WHERE id = 1
     );
+    COMMIT;
 END$$
 
 DROP PROCEDURE IF EXISTS sp_get_dashboard_summary$$

@@ -3,10 +3,14 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Tuple
 
+from utils import parse_flexible_datetime
+
+
 class StockStatus(str, Enum):
     NOT_AVAILABLE = 'NOT_AVAILABLE'
     AVAILABLE = 'AVAILABLE'
     SOLD = 'SOLD'
+
 
 @dataclass(frozen=True)
 class Stock:
@@ -22,7 +26,7 @@ class Stock:
     def from_row(cls, row: Tuple[Any, ...]) -> 'Stock':
         return cls(
             stock_id=int(row[0]),
-            time_added=row[1] if isinstance(row[1], datetime) else datetime.strptime(str(row[1]), '%Y-%m-%d %H:%M:%S'),
+            time_added=parse_flexible_datetime(row[1]),
             product_name=str(row[2] or ''),
             kg=float(row[3] or 0),
             freeze_duration_hours=int(row[4] or 0),

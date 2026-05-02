@@ -42,7 +42,7 @@ class LoadingSpinner(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # Draw spinning arc
-        color = QColor(self.tokens.get('accent_1', '#F28A4B'))
+        color = QColor(self.tokens.get('accent_1', '#5DADE2'))
         pen = QPen(color, 3)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(pen)
@@ -143,7 +143,7 @@ class ProgressBar(QWidget):
         
         # Progress
         if self.progress > 0:
-            progress_color = QColor(self.tokens.get('accent_1', '#F28A4B'))
+            progress_color = QColor(self.tokens.get('accent_1', '#5DADE2'))
             painter.setBrush(progress_color)
             progress_width = int(self.width() * self.progress)
             painter.drawRoundedRect(0, 0, progress_width, self.height(), 3, 3)

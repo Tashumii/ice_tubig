@@ -3,326 +3,216 @@ from datetime import date
 from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
 import qtawesome as qta
 from models.services.sales_service import SalesService
-from utils import friendly_error, humanize_name, humanize_status
+from utils import format_currency, friendly_error, humanize_name, humanize_status, is_admin, is_staff
 from views.components.modern_table import ModernTable
 
 
 class SalesPage(QWidget):
-    def __init__(self, sales_service: SalesService, tokens: dict, current_user=None, *args, **kwargs):
+    def __init__(self, sales_service, tokens, current_user=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sales_service = sales_service
         self.tokens = tokens
         self.current_user = current_user
-        self._all_sales = []
+        self._cached_sales = []
         self._shift_logs = []
-        self._search_query = ""
-        self.setStyleSheet(f"background:transparent;")
+        self._active_search_query = ""
+        self.setStyleSheet("background:transparent;")
         self._build_ui()
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-
-        # ── Header ──────────────────────────────────────────────────────────
-        header = QHBoxLayout()
-        left = QVBoxLayout()
-
-        title = QLabel('Sales History', self)
-        title.setStyleSheet("font-size:24px; font-weight:700;")
-
+        # Header
+        header = QHBoxLayout(); left = QVBoxLayout()
+        title = QLabel('Sales History', self); title.setProperty('pageTitle', True)
         subtitle = QLabel('Revenue, sales records, and product-size breakdowns.', self)
-        subtitle.setStyleSheet(f"color:{self.tokens['text_secondary']};")
-
-        refresh_button = QPushButton('REFRESH', self)
-        refresh_button.setIcon(qta.icon('fa5s.sync-alt', color=self.tokens['accent_1']))
-        refresh_button.clicked.connect(self.refresh)
+        subtitle.setProperty('muted', True)
+        refresh_btn = QPushButton('REFRESH', self)
+        refresh_btn.setIcon(qta.icon('fa5s.sync-alt', color=self.tokens['accent_1']))
+        refresh_btn.clicked.connect(self.refresh)
         self.employee_filter = QComboBox(self)
         self.employee_filter.currentTextChanged.connect(self._apply_sales_filter)
         self.employee_filter.setMinimumWidth(180)
-        left.addWidget(title)
-        left.addWidget(subtitle)
-        header.addLayout(left); header.addStretch(); header.addWidget(refresh_button)
-        if self._is_admin():
-            header.addWidget(self.employee_filter)
+        left.addWidget(title); left.addWidget(subtitle)
+        header.addLayout(left); header.addStretch(); header.addWidget(refresh_btn)
+        if is_admin(self.current_user): header.addWidget(self.employee_filter)
         root.addLayout(header)
 
-        # ── Shift controls ────────────────────────────────────────────────────
-        shift_control = QFrame(self)
-        shift_control.setProperty("card", True)
-        shift_layout = QHBoxLayout(shift_control)
-        shift_layout.addWidget(QLabel("Shift Attendance", shift_control))
-        self.shift_schedule_label = QLabel("", shift_control)
-        self.shift_schedule_label.setStyleSheet(f"color:{self.tokens['text_secondary']};")
-        self.shift_status_label = QLabel("", shift_control)
-        self.shift_status_label.setStyleSheet(f"color:{self.tokens['accent_1']};")
+        # Shift controls
+        shift_card = QFrame(self); shift_card.setProperty("card", True)
+        shift_layout = QHBoxLayout(shift_card)
+        sl = QLabel("Shift Attendance", shift_card); sl.setProperty('cardTitle', True)
+        shift_layout.addWidget(sl)
+        self.shift_schedule_label = QLabel("", shift_card)
+        self.shift_schedule_label.setProperty('muted', True)
+        self.shift_status_label = QLabel("", shift_card)
+        self.shift_status_label.setStyleSheet(f"color:{self.tokens['accent_1']};font-weight:600;")
         shift_layout.addWidget(self.shift_schedule_label)
         shift_layout.addWidget(self.shift_status_label, 1)
-        self.on_site_btn = QPushButton("On Site", shift_control)
-        self.on_site_btn.clicked.connect(self._clock_in)
-        # Only staff members should use clock in/out
-        self.on_site_btn.setEnabled(self._is_staff())
-        self.out_btn = QPushButton("Time Out", shift_control)
-        self.out_btn.clicked.connect(self._clock_out)
-        # Only staff members should use clock in/out
-        self.out_btn.setEnabled(self._is_staff())
-        shift_layout.addWidget(self.on_site_btn)
-        shift_layout.addWidget(self.out_btn)
-        root.addWidget(shift_control)
+        self.clock_in_button = QPushButton("On Site", shift_card)
+        self.clock_in_button.clicked.connect(self._clock_in)
+        self.clock_in_button.setEnabled(is_staff(self.current_user))
+        self.clock_out_button = QPushButton("Time Out", shift_card)
+        self.clock_out_button.clicked.connect(self._clock_out)
+        self.clock_out_button.setEnabled(is_staff(self.current_user))
+        shift_layout.addWidget(self.clock_in_button); shift_layout.addWidget(self.clock_out_button)
+        root.addWidget(shift_card)
 
-        # ── KPI metric cards ─────────────────────────────────────────────────
+        # KPI cards
         kpi_frame = QFrame(self); kpi_frame.setProperty("card", True)
-        kpi_layout = QGridLayout(kpi_frame)
-
-        self._total_card = self._metric_card(kpi_layout, 'Total Revenue', '₱ 0.00', col=0, accent=True)
-        self._count_card = self._metric_card(kpi_layout, 'Transactions', '0', col=1)
-        self._avg_card = self._metric_card(kpi_layout, 'Avg. Sale', '₱ 0.00', col=2)
-        self._top_kg_card = self._metric_card(kpi_layout, 'Top Weight', 'Not recorded', col=3)
+        kpi_grid = QGridLayout(kpi_frame)
+        self._total_card = self._metric_card(kpi_grid, 'Total Revenue', '\u20b1 0.00', col=0, accent=True)
+        self._count_card = self._metric_card(kpi_grid, 'Transactions', '0', col=1)
+        self._avg_card = self._metric_card(kpi_grid, 'Avg. Sale', '\u20b1 0.00', col=2)
+        self._top_kg_card = self._metric_card(kpi_grid, 'Top Weight', 'Not recorded', col=3)
         root.addWidget(kpi_frame)
 
-        # ── Size breakdown strip ─────────────────────────────────────────────
+        # Size breakdown
         breakdown_frame = QFrame(self); breakdown_frame.setProperty("card", True)
-        breakdown_layout = QHBoxLayout(breakdown_frame)
-
-        breakdown_layout.addWidget(QLabel('By Weight', breakdown_frame))
+        bd_layout = QHBoxLayout(breakdown_frame)
+        bwl = QLabel('By Weight', breakdown_frame); bwl.setProperty('cardTitle', True)
+        bd_layout.addWidget(bwl)
         self.kg_revenue_label = QLabel('No sales recorded yet.', breakdown_frame)
-        breakdown_layout.addWidget(self.kg_revenue_label, 1)
+        bd_layout.addWidget(self.kg_revenue_label, 1)
         root.addWidget(breakdown_frame)
 
-        # ── Transactions table ───────────────────────────────────────────────
+        # Transactions table
         table_frame = QFrame(self); table_frame.setProperty("card", True)
         table_layout = QVBoxLayout(table_frame)
-
-        table_header = QHBoxLayout()
-        table_header.addWidget(QLabel('Transactions', table_frame))
-        table_header.addStretch()
-        self._row_count_label = QLabel('', table_frame)
-        table_header.addWidget(self._row_count_label)
-        table_layout.addLayout(table_header)
-
-        columns = ('sale_id', 'stock_id', 'added', 'sold_at', 'product', 'price', 'weight', 'seller', 'shift')
-        self.sales_table = ModernTable(table_frame, columns=columns, tokens=self.tokens)
+        tl = QLabel('Transactions', table_frame); tl.setProperty('cardTitle', True)
+        th = QHBoxLayout(); th.addWidget(tl); th.addStretch()
+        self._row_count_label = QLabel('', table_frame); th.addWidget(self._row_count_label)
+        table_layout.addLayout(th)
+        self.sales_table = ModernTable(table_frame,
+            columns=('sale_id','stock_id','added','sold_at','product','price','weight','seller','shift'), tokens=self.tokens)
         table_layout.addWidget(self.sales_table)
         root.addWidget(table_frame, 1)
 
         # Admin shift-performance table
-        self.shift_frame = QFrame(self)
-        self.shift_frame.setProperty("card", True)
-        shift_layout = QVBoxLayout(self.shift_frame)
-        shift_header = QHBoxLayout()
-        shift_header.addWidget(QLabel('Employee Shift Performance', self.shift_frame))
-        shift_header.addStretch()
-        self.shift_count_label = QLabel('', self.shift_frame)
-        shift_header.addWidget(self.shift_count_label)
-        shift_layout.addLayout(shift_header)
-        self.shift_table = ModernTable(
-            self.shift_frame,
-            columns=('employee', 'shift', 'sales_count', 'revenue'),
-            tokens=self.tokens,
-        )
-        shift_layout.addWidget(self.shift_table)
-        if self._is_admin():
-            root.addWidget(self.shift_frame, 1)
+        self.shift_frame = QFrame(self); self.shift_frame.setProperty("card", True)
+        sf_layout = QVBoxLayout(self.shift_frame)
+        espl = QLabel('Employee Shift Performance', self.shift_frame); espl.setProperty('cardTitle', True)
+        sh = QHBoxLayout(); sh.addWidget(espl); sh.addStretch()
+        self.shift_count_label = QLabel('', self.shift_frame); sh.addWidget(self.shift_count_label)
+        sf_layout.addLayout(sh)
+        self.shift_table = ModernTable(self.shift_frame, columns=('employee','shift','sales_count','revenue'), tokens=self.tokens)
+        sf_layout.addWidget(self.shift_table)
+        if is_admin(self.current_user): root.addWidget(self.shift_frame, 1)
 
         # Attendance records
-        self.attendance_frame = QFrame(self)
-        self.attendance_frame.setProperty("card", True)
-        attendance_layout = QVBoxLayout(self.attendance_frame)
-        attendance_header = QHBoxLayout()
-        attendance_header.addWidget(QLabel("Shift Attendance Records", self.attendance_frame))
-        attendance_header.addStretch()
-        self.attendance_count = QLabel("", self.attendance_frame)
-        attendance_header.addWidget(self.attendance_count)
-        attendance_layout.addLayout(attendance_header)
-        self.attendance_table = ModernTable(
-            self.attendance_frame,
-            columns=("employee", "date", "expected_in", "actual_in", "expected_out", "actual_out", "status"),
-            tokens=self.tokens,
-        )
-        attendance_layout.addWidget(self.attendance_table)
+        self.attendance_frame = QFrame(self); self.attendance_frame.setProperty("card", True)
+        att_layout = QVBoxLayout(self.attendance_frame)
+        sarl = QLabel("Shift Attendance Records", self.attendance_frame); sarl.setProperty('cardTitle', True)
+        ah = QHBoxLayout(); ah.addWidget(sarl); ah.addStretch()
+        self.attendance_count = QLabel("", self.attendance_frame); ah.addWidget(self.attendance_count)
+        att_layout.addLayout(ah)
+        self.attendance_table = ModernTable(self.attendance_frame,
+            columns=("employee","date","expected_in","actual_in","expected_out","actual_out","status"), tokens=self.tokens)
+        att_layout.addWidget(self.attendance_table)
         root.addWidget(self.attendance_frame, 1)
 
-    # ── Helpers ──────────────────────────────────────────────────────────────
-
-    def _metric_card(self, parent, title: str, value: str, col: int, accent: bool = False):
-        """Return a styled metric card; the value label is the returned widget."""
-        frame = QFrame(self)
-        frame.setProperty("panel", True)
+    def _metric_card(self, parent_grid, title, value, col, accent=False):
+        frame = QFrame(self); frame.setProperty("panel", True)
         layout = QVBoxLayout(frame)
-
-        value_color = self.tokens['success'] if accent else self.tokens['text_primary']
-        value_label = QLabel(value, frame)
-        value_label.setStyleSheet(f"font-size:22px; font-weight:700; color:{value_color};")
-        title_label = QLabel(title, frame)
-        layout.addWidget(value_label); layout.addWidget(title_label)
-        parent.addWidget(frame, 0, col)
-        return value_label
-
-    def _is_admin(self) -> bool:
-        roles = getattr(self.current_user, "roles", []) or []
-        return "admin" in roles
-    
-    def _is_staff(self) -> bool:
-        roles = getattr(self.current_user, "roles", []) or []
-        return "staff" in roles
-
-    # ── Data ─────────────────────────────────────────────────────────────────
+        val_label = QLabel(value, frame); val_label.setProperty('kpiValue', True)
+        if accent:
+            val_label.setStyleSheet(f"font-size:22px;font-weight:800;color:{self.tokens['success']};")
+        title_label = QLabel(title, frame); title_label.setProperty('kpiLabel', True)
+        layout.addWidget(val_label); layout.addWidget(title_label)
+        parent_grid.addWidget(frame, 0, col)
+        return val_label
 
     def refresh(self):
         schedule = self.sales_service.get_shift_schedule()
-        self.shift_schedule_label.setText(
-            f"Time In {schedule['shift_start_time']} · Time Out {schedule['shift_end_time']}"
-        )
-        self._all_sales = self.sales_service.get_sales_history()
-        self._populate_employee_filter(self._all_sales)
+        self.shift_schedule_label.setText(f"Time In {schedule['shift_start_time']} \u00b7 Time Out {schedule['shift_end_time']}")
+        self._cached_sales = self.sales_service.get_sales_history()
+        self._populate_employee_filter(self._cached_sales)
         self._apply_sales_filter()
         self._refresh_shift_table()
         self._refresh_attendance_table()
 
     def _populate_employee_filter(self, sales):
-        if not self._is_admin():
-            return
+        if not is_admin(self.current_user): return
         current = self.employee_filter.currentText() if self.employee_filter.count() else "All"
         self.employee_filter.blockSignals(True)
-        self.employee_filter.clear()
-        self.employee_filter.addItem("All")
-        usernames = sorted({sale.sold_by_username for sale in sales if sale.sold_by_username})
-        for name in usernames:
+        self.employee_filter.clear(); self.employee_filter.addItem("All")
+        for name in sorted({s.sold_by_username for s in sales if s.sold_by_username}):
             self.employee_filter.addItem(name)
-        idx = max(self.employee_filter.findText(current), 0)
-        self.employee_filter.setCurrentIndex(idx)
+        self.employee_filter.setCurrentIndex(max(self.employee_filter.findText(current), 0))
         self.employee_filter.blockSignals(False)
 
     def _apply_sales_filter(self):
-        if self._is_admin():
-            selected = "All"
-            if self.employee_filter.count():
-                selected = self.employee_filter.currentText()
-            filtered_sales = self._all_sales
-            if selected and selected != "All":
-                filtered_sales = [sale for sale in self._all_sales if sale.sold_by_username == selected]
+        if is_admin(self.current_user):
+            selected = self.employee_filter.currentText() if self.employee_filter.count() else "All"
+            filtered = self._cached_sales if selected == "All" else [s for s in self._cached_sales if s.sold_by_username == selected]
         else:
             username = getattr(self.current_user, "username", "")
-            filtered_sales = [sale for sale in self._all_sales if sale.sold_by_username == username]
-
-        filtered_sales = self._filter_sales_by_query(filtered_sales)
-
-        total_revenue = 0.0
-        kg_revenue: dict[float, float] = defaultdict(float)
-
-        rows = []
-        for sale in filtered_sales:
+            filtered = [s for s in self._cached_sales if s.sold_by_username == username]
+        filtered = self._filter_sales_by_query(filtered)
+        total_revenue = 0.0; kg_revenue = defaultdict(float); rows = []
+        for sale in filtered:
             rows.append({
-                'sale_id': f'#{sale.sale_id}',
-                'stock_id': f'#{sale.stock_id}',
+                'sale_id': f'#{sale.sale_id}', 'stock_id': f'#{sale.stock_id}',
                 'added': sale.added.strftime('%b %d, %Y %I:%M %p'),
                 'sold_at': sale.sold_at.strftime('%b %d, %Y %I:%M %p'),
-                'product': sale.product_name,
-                'price': f'₱ {sale.price:.2f}',
-                'weight': f'{sale.kg:g} kg',
-                'seller': humanize_name(sale.sold_by_username),
+                'product': sale.product_name, 'price': format_currency(sale.price),
+                'weight': f'{sale.kg:g} kg', 'seller': humanize_name(sale.sold_by_username),
                 'shift': humanize_name(sale.shift_name, "No shift"),
             })
-            total_revenue += sale.price
-            kg_revenue[sale.kg] += sale.price
-
+            total_revenue += sale.price; kg_revenue[sale.kg] += sale.price
         self.sales_table.insert_rows(rows)
-
-        # KPI cards
-        count = len(rows)
-        avg = total_revenue / count if count else 0.0
+        count = len(rows); avg = total_revenue / count if count else 0.0
         top_kg = max(kg_revenue, key=kg_revenue.__getitem__) if kg_revenue else None
-
-        self._total_card.setText(f'₱ {total_revenue:,.2f}')
+        self._total_card.setText(format_currency(total_revenue))
         self._count_card.setText(str(count))
-        self._avg_card.setText(f'₱ {avg:,.2f}')
+        self._avg_card.setText(format_currency(avg))
         self._top_kg_card.setText(f'{top_kg:g} kg' if top_kg is not None else 'Not recorded')
-
-        # Row count badge
         self._row_count_label.setText(f'{count} record{"s" if count != 1 else ""}')
-
-        # Weight breakdown strip
-        if kg_revenue:
-            self.kg_revenue_label.setText('   ·   '.join(f'{kg:g} kg  →  ₱ {amount:,.2f}' for kg, amount in sorted(kg_revenue.items())))
-        else:
-            self.kg_revenue_label.setText('No sales recorded yet.')
+        self.kg_revenue_label.setText(
+            '   \u00b7   '.join(f'{kg:g} kg  \u2192  {format_currency(amt)}' for kg, amt in sorted(kg_revenue.items()))
+            if kg_revenue else 'No sales recorded yet.')
 
     def _filter_sales_by_query(self, sales):
-        query = self._search_query.strip().lower()
-        if not query:
-            return sales
+        q = self._active_search_query.strip().lower()
+        if not q: return sales
+        def matches(s):
+            vals = (str(s.sale_id), f"#{s.sale_id}", str(s.stock_id), f"#{s.stock_id}",
+                s.product_name, f"{s.price:.2f}", f"{s.kg:g}", f"{s.kg:g} kg",
+                humanize_name(s.sold_by_username), humanize_name(s.shift_name, "No shift"),
+                s.added.strftime('%b %d, %Y %I:%M %p'), s.sold_at.strftime('%b %d, %Y %I:%M %p'))
+            return any(q in str(v).lower() for v in vals)
+        return [s for s in sales if matches(s)]
 
-        def matches(sale) -> bool:
-            values = (
-                str(sale.sale_id),
-                f"#{sale.sale_id}",
-                str(sale.stock_id),
-                f"#{sale.stock_id}",
-                sale.product_name,
-                f"{sale.price:.2f}",
-                f"{sale.kg:g}",
-                f"{sale.kg:g} kg",
-                humanize_name(sale.sold_by_username),
-                humanize_name(sale.shift_name, "No shift"),
-                sale.added.strftime('%b %d, %Y %I:%M %p'),
-                sale.sold_at.strftime('%b %d, %Y %I:%M %p'),
-            )
-            return any(query in str(value).lower() for value in values)
-
-        return [sale for sale in sales if matches(sale)]
-
-    def search(self, query: str):
-        """Search sales while respecting the current employee/user filter."""
-        self._search_query = query or ""
+    def search(self, query):
+        self._active_search_query = query or ""
         self._apply_sales_filter()
 
     def _refresh_shift_table(self):
-        if not self._is_admin():
-            return
-        rows = []
-        for item in self.sales_service.get_employee_shift_summary():
-            rows.append({
-                "employee": item["username"],
-                "shift": humanize_name(item["shift"], "No shift"),
-                "sales_count": str(item["sales_count"]),
-                "revenue": f"₱ {item['total_revenue']:,.2f}",
-            })
+        if not is_admin(self.current_user): return
+        rows = [{"employee": i["username"], "shift": humanize_name(i["shift"], "No shift"),
+                 "sales_count": str(i["sales_count"]), "revenue": format_currency(i['total_revenue'])}
+                for i in self.sales_service.get_employee_shift_summary()]
         self.shift_table.insert_rows(rows)
         self.shift_count_label.setText(f"{len(rows)} shift record{'s' if len(rows) != 1 else ''}")
 
     def _refresh_attendance_table(self):
-        user_id = None if self._is_admin() else getattr(self.current_user, "user_id", None)
-        logs = self.sales_service.get_shift_logs(user_id)
-        self._shift_logs = logs
-        rows = []
-        for log in logs:
-            rows.append(
-                {
-                    "_iid": str(log["log_id"]),
-                    "employee": log["username"],
-                    "date": log["shift_date"],
-                    "expected_in": log["expected_in"],
-                    "actual_in": log["actual_in"] or "Not recorded",
-                    "expected_out": log["expected_out"],
-                    "actual_out": log["actual_out"] or "Not recorded",
-                    "status": humanize_status(log["status"]),
-                }
-            )
+        user_id = None if is_admin(self.current_user) else getattr(self.current_user, "user_id", None)
+        logs = self.sales_service.get_shift_logs(user_id); self._shift_logs = logs
+        rows = [{"_iid": str(l["log_id"]), "employee": l["username"], "date": l["shift_date"],
+                 "expected_in": l["expected_in"], "actual_in": l["actual_in"] or "Not recorded",
+                 "expected_out": l["expected_out"], "actual_out": l["actual_out"] or "Not recorded",
+                 "status": humanize_status(l["status"])} for l in logs]
         self.attendance_table.insert_rows(rows)
         self.attendance_count.setText(f"{len(rows)} attendance record{'s' if len(rows) != 1 else ''}")
         today = date.today().isoformat()
-        today_row = next((row for row in rows if row["date"] == today), None)
-        if today_row:
-            self.shift_status_label.setText(f"Today: {today_row['status']}")
-        else:
-            self.shift_status_label.setText("Today: Not On Site")
+        today_row = next((r for r in rows if r["date"] == today), None)
+        self.shift_status_label.setText(f"Today: {today_row['status']}" if today_row else "Today: Not On Site")
 
     def _clock_in(self):
         user_id = getattr(self.current_user, "user_id", None)
         if user_id is None:
-            QMessageBox.warning(self, "Account Error", "Unable to identify your account.")
-            return
+            QMessageBox.warning(self, "Account Error", "Unable to identify your account."); return
         try:
-            self.sales_service.clock_in(user_id)
-            self.refresh()
+            self.sales_service.clock_in(user_id); self.refresh()
             QMessageBox.information(self, "Shift Updated", "You are now marked as On Site.")
         except Exception as exc:
             QMessageBox.critical(self, "Shift Error", friendly_error(exc))
@@ -330,11 +220,9 @@ class SalesPage(QWidget):
     def _clock_out(self):
         user_id = getattr(self.current_user, "user_id", None)
         if user_id is None:
-            QMessageBox.warning(self, "Account Error", "Unable to identify your account.")
-            return
+            QMessageBox.warning(self, "Account Error", "Unable to identify your account."); return
         try:
-            self.sales_service.clock_out(user_id)
-            self.refresh()
+            self.sales_service.clock_out(user_id); self.refresh()
             QMessageBox.information(self, "Shift Updated", "Time Out recorded.")
         except Exception as exc:
             QMessageBox.critical(self, "Shift Error", friendly_error(exc))

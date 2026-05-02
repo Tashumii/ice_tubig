@@ -1099,6 +1099,9 @@ class DatabaseManager:
                 if not user:
                     return None
                 
+                if user[1] != username:
+                    return None
+                    
                 return user
         except pymysql.MySQLError as exc:
             self._raise_error("Authentication failed", exc)

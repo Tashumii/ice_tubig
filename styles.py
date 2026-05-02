@@ -1,164 +1,151 @@
+import os
 from typing import Dict
 
 # ============================================================
-# DESIGN TOKENS - Professional UI System
-# Following anti-generic UI/UX principles
+# DESIGN TOKENS — Mr. Ice Buddha · Icy Blue Brand System
+# Typography-first, high-contrast, frosted glass aesthetic
 # ============================================================
+
+_BG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images', 'background_login.png')
 
 TOKENS: Dict[str, Dict[str, str]] = {
     'dark': {
-        # Surfaces (60% canvas, 30% secondary, 10% accent) - Modern Professional Navy
-        'bg_base': '#0A1220',           # Deep navy base
-        'bg_surface': '#141E2E',        # Card backgrounds with blue tint
-        'bg_elevated': '#1A2A42',       # Elevated panels
-        'bg_input': '#141E2E',          # Input fields
-        'bg_sidebar': '#0A1220',        # Sidebar matches base
-        
-        # Brand - Modern Orange + Blue Complementary Pair
-        'accent_1': '#FF9500',          # Primary CTA - warm orange
-        'accent_2': '#3B82F6',          # Secondary - professional blue
-        'accent_3': '#FDB022',          # Pressed states - lighter orange
-        
-        # Semantic colors - Professional palette
-        'success': '#10B981',           # Vibrant green
-        'warning': '#F59E0B',           # Professional amber
-        'danger': '#EF4444',            # Modern red
-        
-        # Text hierarchy (blue-tinted white for better readability)
-        'text_primary': '#F0F4F8',      # Cool white for reduced eye strain
-        'text_secondary': '#9CA3AF',    # Medium gray
-        'text_muted': '#6B7280',        # Muted gray
-        
-        # Sidebar text 
-        'sidebar_text_primary': '#F0F4F8',
-        'sidebar_text_secondary': '#9CA3AF',
-        'sidebar_text_muted': '#6B7280',
-        
-        # Borders (more visible with refined palette)
-        'border': '#2D3E52',            # Visible default border
-        'border_strong': '#3B4A5F',     # Emphasis border
-        'border_accent': '#FF950088',   # Orange accent border with opacity
-        
-        # Component-specific - Refined palette
-        'surface_muted': '#141E2E',     # Distinct from bg_elevated
-        'input_border': '#3B4A5F',      # Strong border for inputs
-        'card_border': '#2D3E52',       # Card borders
-        
-        # Table - Modern styling
-        'table_header_bg': '#FF9500',
-        'table_header_text': '#0A1220',
-        'table_row_alt': '#141E2E',
-        'table_row_hover': '#1A2A42',
-        
-        # Navigation - Blue for active state
-        'nav_active_bg': '#3B82F6',
-        'nav_hover': '#1A2A42',
-        
-        # Pills/Badges
-        'pill_bg': '#1A2A42',
-        'pill_text': '#FF9500',
-        
-        # Shadows (subtle only - rgba(0,0,0,0.04-0.09))
-        'shadow_xs': '0 1px 2px rgba(0, 0, 0, 0.08)',
-        'shadow_sm': '0 2px 8px rgba(0, 0, 0, 0.10), 0 1px 2px rgba(0, 0, 0, 0.06)',
-        'shadow_md': '0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08)',
-        'shadow_lg': '0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.10)',
-        
-        # Border radius scale (consistent system)
-        'radius_xs': '4',
-        'radius_sm': '6',
-        'radius_md': '10',
-        'radius_lg': '14',
-        'radius_xl': '18',
-        'radius_full': '9999',
-        
+        # Surfaces — frosted dark navy (high opacity so text is readable)
+        'bg_base': '#0B1929',
+        'bg_surface': 'rgba(8, 20, 38, 0.92)',       # Cards: dark frosted glass
+        'bg_elevated': 'rgba(16, 32, 58, 0.90)',      # Elevated panels
+        'bg_input': 'rgba(6, 16, 32, 0.88)',           # Input fields
+        'bg_sidebar': '#061020',                        # Sidebar: solid dark
+        'bg_login': _BG_PATH,
+
+        # Brand — Ice Buddha Blue
+        'accent_1': '#5DADE2',
+        'accent_2': '#3498DB',
+        'accent_3': '#85C1E9',
+
+        # Semantic colors
+        'success': '#2ECC71',
+        'warning': '#F39C12',
+        'danger': '#E74C3C',
+
+        # Text hierarchy — HIGH CONTRAST on dark frosted cards
+        'text_primary': '#EDF6FC',       # Near-white with blue tint
+        'text_secondary': '#93C5E8',     # Soft sky blue — readable
+        'text_muted': '#5F9CC0',         # Muted steel blue
+
+        # Sidebar text
+        'sidebar_text_primary': '#EDF6FC',
+        'sidebar_text_secondary': '#93C5E8',
+        'sidebar_text_muted': '#5499C7',
+
+        # Borders — visible against frosted dark
+        'border': 'rgba(93, 173, 226, 0.25)',
+        'border_strong': 'rgba(93, 173, 226, 0.40)',
+        'border_accent': 'rgba(93, 173, 226, 0.35)',
+
+        # Component
+        'surface_muted': 'rgba(10, 24, 48, 0.85)',
+        'input_border': 'rgba(93, 173, 226, 0.30)',
+        'card_border': 'rgba(93, 173, 226, 0.20)',
+
+        # Table
+        'table_header_bg': '#2E86C1',
+        'table_header_text': '#FFFFFF',
+        'table_row_alt': 'rgba(8, 20, 38, 0.50)',
+        'table_row_hover': 'rgba(93, 173, 226, 0.15)',
+
+        # Navigation
+        'nav_active_bg': '#2E86C1',
+        'nav_hover': 'rgba(93, 173, 226, 0.12)',
+
+        # Pills
+        'pill_bg': 'rgba(93, 173, 226, 0.15)',
+        'pill_text': '#5DADE2',
+
+        # Shadows
+        'shadow_xs': '0 1px 3px rgba(0,0,0,0.20)',
+        'shadow_sm': '0 2px 10px rgba(0,0,0,0.25)',
+        'shadow_md': '0 4px 20px rgba(0,0,0,0.30)',
+        'shadow_lg': '0 8px 30px rgba(0,0,0,0.35)',
+
+        # Radius
+        'radius_xs': '4', 'radius_sm': '6', 'radius_md': '12',
+        'radius_lg': '16', 'radius_xl': '20', 'radius_full': '9999',
+
         # Typography
         'font_family': 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        'font_size_xs': '11',
-        'font_size_sm': '13',
-        'font_size_base': '15',
-        'font_size_md': '17',
-        'font_size_lg': '20',
-        'font_size_xl': '24',
-        'font_size_2xl': '30',
-        'font_size_3xl': '40',
+        'font_size_xs': '11', 'font_size_sm': '13', 'font_size_base': '14',
+        'font_size_md': '16', 'font_size_lg': '20', 'font_size_xl': '24',
+        'font_size_2xl': '28', 'font_size_3xl': '36',
     },
     'light': {
-        # Surfaces (60-30-10 rule)
-        'bg_base': '#F9FAFB',           # Light gray canvas
-        'bg_surface': '#FFFFFF',        # Pure white cards
-        'bg_elevated': '#F3F4F6',       # Subtle gray tint
-        'bg_input': '#F9FAFB',          # Distinct input background
-        'bg_sidebar': '#111827',        # Dark sidebar for contrast
-        
-        # Brand (saturated for light mode)
-        'accent_1': '#EA580C',          # Primary CTA
-        'accent_2': '#C2410C',          # Hover
-        'accent_3': '#F97316',          # Pressed
-        
-        # Semantic colors
-        'success': '#059669',
-        'warning': '#D97706',
-        'danger': '#DC2626',
-        
-        # Text hierarchy
-        'text_primary': '#111827',      # Near black
-        'text_secondary': '#4B5563',    # Medium gray
-        'text_muted': '#6B7280',        # Muted gray
-        
-        # Sidebar text (light colors for dark sidebar)
-        'sidebar_text_primary': '#E5E7EB',    # Light text for dark sidebar
-        'sidebar_text_secondary': '#9CA3AF',  # Medium gray for dark sidebar
-        'sidebar_text_muted': '#6B7280',      # Muted for dark sidebar
-        
-        # Borders (10%+ darker than background)
-        'border': '#E5E7EB',            # Clearly visible
-        'border_strong': '#D1D5DB',     # Emphasis
-        'border_accent': '#EA580C44',
-        
-        # Component-specific
-        'surface_muted': '#F3F4F6',
-        'input_border': '#D1D5DB',      # Strong input borders
-        'card_border': '#E5E7EB',
-        
+        # Surfaces — frosted white glass
+        'bg_base': '#E8F4FD',
+        'bg_surface': 'rgba(255, 255, 255, 0.88)',
+        'bg_elevated': 'rgba(230, 244, 253, 0.85)',
+        'bg_input': 'rgba(255, 255, 255, 0.70)',
+        'bg_sidebar': '#061020',
+        'bg_login': _BG_PATH,
+
+        # Brand
+        'accent_1': '#2E86C1',
+        'accent_2': '#1A5276',
+        'accent_3': '#5DADE2',
+
+        # Semantic
+        'success': '#1E8449',
+        'warning': '#D68910',
+        'danger': '#CB4335',
+
+        # Text — dark on white glass
+        'text_primary': '#0A1F33',
+        'text_secondary': '#1B4F72',
+        'text_muted': '#5D6D7E',
+
+        # Sidebar text
+        'sidebar_text_primary': '#EDF6FC',
+        'sidebar_text_secondary': '#93C5E8',
+        'sidebar_text_muted': '#5499C7',
+
+        # Borders
+        'border': 'rgba(46, 134, 193, 0.25)',
+        'border_strong': 'rgba(46, 134, 193, 0.40)',
+        'border_accent': 'rgba(46, 134, 193, 0.30)',
+
+        # Component
+        'surface_muted': 'rgba(214, 234, 248, 0.70)',
+        'input_border': 'rgba(46, 134, 193, 0.30)',
+        'card_border': 'rgba(46, 134, 193, 0.20)',
+
         # Table
-        'table_header_bg': '#EA580C',
+        'table_header_bg': '#2E86C1',
         'table_header_text': '#FFFFFF',
-        'table_row_alt': '#F9FAFB',
-        'table_row_hover': '#FEF3C7',
-        
-        # Navigation
-        'nav_active_bg': '#FEF3C7',
-        'nav_hover': '#FEF9C3',
-        
-        # Pills/Badges
-        'pill_bg': '#FEF3C7',
-        'pill_text': '#92400E',
-        
-        # Shadows (subtle)
-        'shadow_xs': '0 1px 2px rgba(0, 0, 0, 0.04)',
-        'shadow_sm': '0 2px 8px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03)',
-        'shadow_md': '0 4px 16px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.04)',
-        'shadow_lg': '0 8px 24px rgba(0, 0, 0, 0.09), 0 4px 8px rgba(0, 0, 0, 0.05)',
-        
-        # Border radius scale
-        'radius_xs': '4',
-        'radius_sm': '6',
-        'radius_md': '10',
-        'radius_lg': '14',
-        'radius_xl': '18',
-        'radius_full': '9999',
-        
+        'table_row_alt': 'rgba(235, 245, 251, 0.50)',
+        'table_row_hover': 'rgba(93, 173, 226, 0.12)',
+
+        # Nav
+        'nav_active_bg': '#2E86C1',
+        'nav_hover': 'rgba(93, 173, 226, 0.12)',
+
+        # Pills
+        'pill_bg': 'rgba(93, 173, 226, 0.15)',
+        'pill_text': '#1A5276',
+
+        # Shadows
+        'shadow_xs': '0 1px 3px rgba(44,62,80,0.08)',
+        'shadow_sm': '0 2px 10px rgba(44,62,80,0.10)',
+        'shadow_md': '0 4px 20px rgba(44,62,80,0.12)',
+        'shadow_lg': '0 8px 30px rgba(44,62,80,0.15)',
+
+        # Radius
+        'radius_xs': '4', 'radius_sm': '6', 'radius_md': '12',
+        'radius_lg': '16', 'radius_xl': '20', 'radius_full': '9999',
+
         # Typography
         'font_family': 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        'font_size_xs': '11',
-        'font_size_sm': '13',
-        'font_size_base': '15',
-        'font_size_md': '17',
-        'font_size_lg': '20',
-        'font_size_xl': '24',
-        'font_size_2xl': '30',
-        'font_size_3xl': '40',
+        'font_size_xs': '11', 'font_size_sm': '13', 'font_size_base': '14',
+        'font_size_md': '16', 'font_size_lg': '20', 'font_size_xl': '24',
+        'font_size_2xl': '28', 'font_size_3xl': '36',
     },
 }
 
@@ -168,250 +155,379 @@ def init_theme(theme: str = "dark") -> Dict[str, str]:
 
 
 def build_qss(tokens: Dict[str, str]) -> str:
-    # Border radius scale (nesting rule compliant)
-    radius_xs = f"{tokens['radius_xs']}px"
-    radius_sm = f"{tokens['radius_sm']}px"
-    radius_md = f"{tokens['radius_md']}px"
-    radius_lg = f"{tokens['radius_lg']}px"
-    radius_xl = f"{tokens['radius_xl']}px"
-    
-    # Type scale
-    text_xs = f"{tokens['font_size_xs']}px"
-    text_sm = f"{tokens['font_size_sm']}px"
-    text_base = f"{tokens['font_size_base']}px"
-    text_md = f"{tokens['font_size_md']}px"
-    text_lg = f"{tokens['font_size_lg']}px"
-    text_xl = f"{tokens['font_size_xl']}px"
-    text_2xl = f"{tokens['font_size_2xl']}px"
-    text_3xl = f"{tokens['font_size_3xl']}px"
-    
+    r_sm = f"{tokens['radius_sm']}px"
+    r_md = f"{tokens['radius_md']}px"
+    r_lg = f"{tokens['radius_lg']}px"
+    t_xs = f"{tokens['font_size_xs']}px"
+    t_sm = f"{tokens['font_size_sm']}px"
+    t_base = f"{tokens['font_size_base']}px"
+    t_md = f"{tokens['font_size_md']}px"
+    t_lg = f"{tokens['font_size_lg']}px"
+    t_xl = f"{tokens['font_size_xl']}px"
+    t_2xl = f"{tokens['font_size_2xl']}px"
+
     return f"""
     /* ============================================================
-       PROFESSIONAL UI SYSTEM - Anti-Generic Design
-       Following: Single brand hue, visible borders, subtle shadows,
-       consistent radius scale, proper text hierarchy
+       Mr. Ice Buddha · Frosted Glass Typography System
+       High-contrast text on semi-transparent dark panels
        ============================================================ */
-    
+
     * {{
-        /* Minimum animation layer - all interactive elements */
         transition: background-color 180ms ease,
                     border-color 180ms ease,
-                    color 180ms ease,
-                    box-shadow 180ms ease;
+                    color 180ms ease;
     }}
-    
+
     QWidget {{
-        background: {tokens['bg_base']};
+        background: transparent;
         color: {tokens['text_primary']};
         font-family: {tokens['font_family']};
-        font-size: {text_base};
+        font-size: {t_base};
     }}
-    
+
     QMainWindow {{
         background: {tokens['bg_base']};
     }}
-    
+
+    /* ── Typography hierarchy ────────────────────────────────── */
+
     QLabel {{
         background: transparent;
         color: {tokens['text_primary']};
+        font-weight: 400;
     }}
-    
-    /* Brand title - accent color with hierarchy */
+
     QLabel[brandTitle="true"] {{
         color: {tokens['accent_1']};
-        font-size: {text_2xl};
+        font-size: {t_2xl};
         font-weight: 800;
         letter-spacing: 0.5px;
     }}
-    
-    /* Brand subtitle - secondary text */
+
     QLabel[brandSub="true"] {{
         color: {tokens['text_secondary']};
-        font-size: {text_xs};
+        font-size: {t_xs};
         font-weight: 600;
         letter-spacing: 1.5px;
         text-transform: uppercase;
     }}
-    
-    /* Muted text */
+
     QLabel[muted="true"] {{
         color: {tokens['text_muted']};
-        font-size: {text_sm};
+        font-size: {t_sm};
+        font-weight: 400;
     }}
-    
-    /* Input fields - distinct background, visible borders */
-    QLineEdit, QComboBox, QTextEdit, QPlainTextEdit {{
+
+    QLabel[pageTitle="true"] {{
+        font-size: {t_xl};
+        font-weight: 700;
+        color: {tokens['text_primary']};
+        letter-spacing: 0.3px;
+    }}
+
+    QLabel[cardTitle="true"] {{
+        font-size: {t_md};
+        font-weight: 700;
+        color: {tokens['text_primary']};
+    }}
+
+    QLabel[sectionLabel="true"] {{
+        font-size: {t_xs};
+        font-weight: 700;
+        color: {tokens['text_secondary']};
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+    }}
+
+    QLabel[kpiValue="true"] {{
+        font-size: {t_xl};
+        font-weight: 800;
+        color: {tokens['accent_1']};
+    }}
+
+    QLabel[kpiLabel="true"] {{
+        font-size: {t_xs};
+        font-weight: 600;
+        color: {tokens['text_secondary']};
+        letter-spacing: 0.5px;
+    }}
+
+    /* ── Inputs ──────────────────────────────────────────────── */
+
+    QLineEdit, QComboBox, QTextEdit, QPlainTextEdit, QListWidget {{
         background: {tokens['bg_input']};
         color: {tokens['text_primary']};
         border: 1px solid {tokens['input_border']};
-        border-radius: {radius_sm};
-        padding: 8px 12px;
-        font-size: {text_base};
+        border-radius: {r_sm};
+        padding: 10px 14px;
+        font-size: {t_base};
+        font-weight: 500;
         selection-background-color: {tokens['accent_1']};
         selection-color: #FFFFFF;
     }}
-    
+
     QLineEdit:focus, QComboBox:focus, QTextEdit:focus, QPlainTextEdit:focus {{
         border: 2px solid {tokens['accent_1']};
-        padding: 7px 11px;
+        padding: 9px 13px;
     }}
-    
+
+    QLineEdit::placeholder {{
+        color: {tokens['text_muted']};
+        font-weight: 400;
+    }}
+
     QComboBox::drop-down {{
         border: none;
         width: 24px;
         subcontrol-origin: padding;
         subcontrol-position: center right;
     }}
-    
-    /* Primary buttons - brand accent with hover states */
+
+    QSpinBox, QDoubleSpinBox {{
+        background: {tokens['bg_input']};
+        color: {tokens['text_primary']};
+        border: 1px solid {tokens['input_border']};
+        border-radius: {r_sm};
+        padding: 8px 12px;
+        font-size: {t_base};
+    }}
+
+    QSpinBox:focus, QDoubleSpinBox:focus {{
+        border: 2px solid {tokens['accent_1']};
+    }}
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+
     QPushButton {{
-        background: {tokens['accent_1']};
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 {tokens['accent_1']}, stop:1 {tokens['accent_2']});
         color: #FFFFFF;
-        border: 1px solid {tokens['accent_2']};
-        border-radius: {radius_sm};
-        padding: 10px 16px;
-        font-size: {text_sm};
+        border: none;
+        border-radius: {r_sm};
+        padding: 10px 18px;
+        font-size: {t_sm};
         font-weight: 600;
         min-height: 20px;
+        letter-spacing: 0.3px;
     }}
-    
+
     QPushButton:hover {{
-        background: {tokens['accent_2']};
-        border: 1px solid {tokens['accent_1']};
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 {tokens['accent_2']}, stop:1 {tokens['accent_1']});
     }}
-    
+
     QPushButton:pressed {{
         background: {tokens['accent_3']};
-        border: 1px solid {tokens['accent_2']};
     }}
-    
+
     QPushButton:disabled {{
         background: {tokens['surface_muted']};
         color: {tokens['text_muted']};
         border: 1px solid {tokens['border']};
     }}
-    
-    /* Navigation buttons - transparent with visible hover */
+
     QPushButton[nav="true"] {{
         text-align: left;
         padding: 12px 14px;
-        border-radius: {radius_sm};
+        border-radius: {r_sm};
         background: transparent;
-        color: {tokens['text_primary']};
+        color: {tokens['sidebar_text_secondary']};
         border: 1px solid transparent;
-        font-size: {text_sm};
+        font-size: {t_sm};
         font-weight: 500;
     }}
-    
+
     QPushButton[nav="true"]:hover {{
         background: {tokens['nav_hover']};
         border: 1px solid {tokens['border']};
+        color: {tokens['sidebar_text_primary']};
     }}
-    
-    /* Active navigation - brand accent */
+
     QPushButton[navActive="true"] {{
         background: {tokens['nav_active_bg']};
-        color: {tokens['accent_1']};
+        color: #FFFFFF;
         border: 1px solid {tokens['border_accent']};
         font-weight: 600;
     }}
-    
-    /* Danger buttons - semantic red */
+
     QPushButton[danger="true"] {{
         background: transparent;
         color: {tokens['danger']};
         border: 1px solid {tokens['danger']};
+        font-weight: 600;
     }}
-    
+
     QPushButton[danger="true"]:hover {{
         background: {tokens['danger']};
         color: #FFFFFF;
     }}
-    
-    /* Cards - proper surface with visible borders and shadows */
+
+    QPushButton[primary="true"] {{
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 {tokens['accent_1']}, stop:1 {tokens['accent_2']});
+        color: #FFFFFF;
+        font-weight: 700;
+        border-radius: {r_md};
+        padding: 12px 24px;
+    }}
+
+    QPushButton[secondary="true"] {{
+        background: transparent;
+        color: {tokens['accent_1']};
+        border: 1px solid {tokens['accent_1']};
+        font-weight: 600;
+    }}
+
+    QPushButton[secondary="true"]:hover {{
+        background: {tokens['accent_1']};
+        color: #FFFFFF;
+    }}
+
+    /* ── Cards & Panels — Frosted glass with strong borders ─── */
+
     QFrame[card="true"] {{
         background: {tokens['bg_surface']};
         border: 1px solid {tokens['card_border']};
-        border-radius: {radius_md};
+        border-radius: {r_md};
     }}
-    
-    /* Panels - distinct from cards */
+
     QFrame[panel="true"] {{
         background: {tokens['surface_muted']};
         border: 1px solid {tokens['border']};
-        border-radius: {radius_sm};
+        border-radius: {r_sm};
     }}
-    
-    /* Shell containers - larger radius */
+
     QFrame[shell="true"] {{
         background: {tokens['bg_surface']};
         border: 1px solid {tokens['card_border']};
-        border-radius: {radius_lg};
+        border-radius: {r_lg};
     }}
-    
-    /* Top bar */
+
     QFrame[topbar="true"] {{
-        background: {tokens['bg_surface']};
+        background: {tokens['bg_elevated']};
         border: 1px solid {tokens['card_border']};
-        border-radius: {radius_md};
+        border-radius: {r_md};
     }}
-    
-    /* Pills/Badges - full radius, visible borders */
+
     QLabel[pill="true"] {{
         background: {tokens['pill_bg']};
         color: {tokens['pill_text']};
         border: 1px solid {tokens['border_accent']};
         border-radius: {tokens['radius_full']}px;
-        padding: 5px 12px;
-        font-size: {text_xs};
-        font-weight: 600;
+        padding: 5px 14px;
+        font-size: {t_xs};
+        font-weight: 700;
+        letter-spacing: 0.5px;
     }}
-    
-    /* Scroll areas */
+
+    /* ── Scroll areas ────────────────────────────────────────── */
+
     QScrollArea {{
         border: none;
-        background: {tokens['bg_base']};
+        background: transparent;
     }}
-    
+
     QScrollBar:vertical {{
-        background: {tokens['bg_base']};
-        width: 10px;
-        border-radius: 5px;
+        background: transparent;
+        width: 8px;
+        border-radius: 4px;
     }}
-    
+
     QScrollBar::handle:vertical {{
-        background: {tokens['border']};
-        border-radius: 5px;
+        background: {tokens['border_strong']};
+        border-radius: 4px;
         min-height: 30px;
     }}
-    
+
     QScrollBar::handle:vertical:hover {{
-        background: {tokens['border_strong']};
+        background: {tokens['accent_1']};
     }}
-    
+
     QScrollBar:horizontal {{
-        background: {tokens['bg_base']};
-        height: 10px;
-        border-radius: 5px;
+        background: transparent;
+        height: 8px;
+        border-radius: 4px;
     }}
-    
+
     QScrollBar::handle:horizontal {{
-        background: {tokens['border']};
-        border-radius: 5px;
+        background: {tokens['border_strong']};
+        border-radius: 4px;
         min-width: 30px;
     }}
-    
+
     QScrollBar::handle:horizontal:hover {{
-        background: {tokens['border_strong']};
+        background: {tokens['accent_1']};
     }}
-    
+
     QScrollBar::add-line, QScrollBar::sub-line {{
         border: none;
         background: none;
     }}
-    
+
     QStackedWidget {{
         background: transparent;
+    }}
+
+    /* ── Dialogs ─────────────────────────────────────────────── */
+
+    QDialog {{
+        background: {tokens['bg_base']};
+        border: 1px solid {tokens['card_border']};
+        border-radius: {r_md};
+    }}
+
+    QDialogButtonBox QPushButton {{
+        min-width: 90px;
+    }}
+
+    /* ── Checkboxes ──────────────────────────────────────────── */
+
+    QCheckBox {{
+        color: {tokens['text_primary']};
+        spacing: 8px;
+        font-weight: 500;
+    }}
+
+    QCheckBox::indicator {{
+        width: 18px;
+        height: 18px;
+        border: 2px solid {tokens['border_strong']};
+        border-radius: 4px;
+        background: {tokens['bg_input']};
+    }}
+
+    QCheckBox::indicator:checked {{
+        background: {tokens['accent_1']};
+        border-color: {tokens['accent_1']};
+    }}
+
+    /* ── List widgets ────────────────────────────────────────── */
+
+    QListWidget {{
+        background: transparent;
+        border: none;
+        outline: none;
+    }}
+
+    QListWidget::item {{
+        border: none;
+        padding: 2px 0;
+    }}
+
+    QListWidget::item:selected {{
+        background: transparent;
+    }}
+
+    /* ── Message boxes ───────────────────────────────────────── */
+
+    QMessageBox {{
+        background: {tokens['bg_surface']};
+    }}
+
+    QMessageBox QLabel {{
+        color: {tokens['text_primary']};
+        font-size: {t_base};
+        font-weight: 500;
     }}
     """
 

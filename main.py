@@ -1,8 +1,10 @@
+import os
 import sys
 import logging
 
-from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
+from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPainter, QPixmap
 
 from database import DatabaseManager, DatabaseError
 from models.services.inventory_service import InventoryService
@@ -19,42 +21,64 @@ from responsive import ResponsiveHelper
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_BG_PATH = os.path.join(_BASE_DIR, 'images', 'background_login.png')
+
+
+class BackgroundWidget(QWidget):
+    """Widget that paints the icy background image behind all content."""
+
+    def __init__(self, bg_path: str, parent=None):
+        super().__init__(parent)
+        self._bg_pixmap = QPixmap(bg_path)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
+
+    def paintEvent(self, event):
+        if not self._bg_pixmap.isNull():
+            painter = QPainter(self)
+            scaled = self._bg_pixmap.scaled(
+                self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation)
+            x = (self.width() - scaled.width()) // 2
+            y = (self.height() - scaled.height()) // 2
+            painter.drawPixmap(x, y, scaled)
+            painter.end()
+
 
 class IceTubigApp(QMainWindow):
-    """Main application window with login flow."""
-    
+    """Main application window with login flow and consistent icy background."""
+
     def __init__(self):
         super().__init__()
-        
-        self.setWindowTitle("IceTubig - Ice Inventory Management System")
-        
+
+        self.setWindowTitle("Mr. Ice Buddha — Inventory Management System")
+
         # Responsive window sizing
         device_type = ResponsiveHelper.get_device_type()
         width, height = ResponsiveHelper.get_window_size(device_type)
         self.resize(width, height)
-        
-        # Set minimum size based on device
+
         if device_type == "mobile":
             self.setMinimumSize(360, 640)
         elif device_type == "tablet":
             self.setMinimumSize(768, 600)
         else:
             self.setMinimumSize(900, 600)
-        
+
         try:
             self.database_manager = DatabaseManager()
             logging.info("Database connection established successfully")
         except DatabaseError as exc:
-            error_msg = f"Database Connection Failed\n\n{str(exc)}\nMySQL is not running or the ice_tubig database is not available."
+            error_msg = f"Database Connection Failed\n\n{exc}\nMySQL is not running or the ice_tubig database is not available."
             logging.error(f"Database connection failed: {exc}")
             QMessageBox.critical(self, 'Database Error', error_msg)
             sys.exit(1)
         except Exception as exc:
-            error_msg = f"Unexpected Error\n\n{str(exc)}"
+            error_msg = f"Unexpected Error\n\n{exc}"
             logging.exception("Unexpected error during startup")
             QMessageBox.critical(self, 'Startup Error', error_msg)
             sys.exit(1)
-        
+
         # Initialize services
         self.inventory_service = InventoryService(self.database_manager)
         self.sales_service = SalesService(self.database_manager)
@@ -62,30 +86,37 @@ class IceTubigApp(QMainWindow):
         self.auth_service = AuthService(self.database_manager)
         self.report_service = ReportService(self.database_manager)
         self.announcement_service = AnnouncementService(self.database_manager)
-        
+
         # Create UI tokens
         self.tokens = apply_app_style(QApplication.instance(), self.settings_service.get_theme())
-        
-        # Create main container
-        self.container = FadeStackedWidget(self)
-        self.setCentralWidget(self.container)
-        
+
+        # ── Background + container stack ──────────────────────────────────
+        # BackgroundWidget paints the icy image behind everything,
+        # so both login page and main window share the same background.
+        self._bg_widget = BackgroundWidget(_BG_PATH, self)
+        self.setCentralWidget(self._bg_widget)
+
+        from PyQt6.QtWidgets import QVBoxLayout
+        bg_layout = QVBoxLayout(self._bg_widget)
+        bg_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.container = FadeStackedWidget(self._bg_widget)
+        self.container.setStyleSheet("background: transparent;")
+        bg_layout.addWidget(self.container)
+
         self.frames = {}
         self.current_user = None
         self.last_login_error = ''
-        # Show login page
-        
         self.show_login()
-    
+
     def show_login(self):
         """Show login page."""
         self.current_user = None
-        # Clear existing frames
         while self.container.count():
             widget = self.container.widget(0)
             self.container.removeWidget(widget)
             widget.deleteLater()
-        
+
         login_frame = LoginPage(
             self.container,
             self.auth_service,
@@ -96,12 +127,12 @@ class IceTubigApp(QMainWindow):
         self.container.addWidget(login_frame)
         self.container.switch_to(login_frame)
         self.last_login_error = ''
-    
+
     def on_login_success(self, user):
         """Handle successful login."""
         self.current_user = user
         self.show_main_window()
-    
+
     def show_main_window(self):
         """Show main application window."""
         try:
@@ -124,15 +155,12 @@ class IceTubigApp(QMainWindow):
             self.show_login()
             return
 
-        # Clear container only after successful creation
         while self.container.count():
             widget = self.container.widget(0)
             self.container.removeWidget(widget)
             widget.deleteLater()
         self.container.addWidget(main_window)
         self.container.switch_to(main_window)
-
-        # Store reference
         self.frames['main'] = main_window
 
     def _on_close(self):
@@ -155,7 +183,7 @@ class IceTubigApp(QMainWindow):
 if __name__ == '__main__':
     app_qt = QApplication(sys.argv)
     app_qt.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    
+
     app = IceTubigApp()
     app.show()
     sys.exit(app_qt.exec())
