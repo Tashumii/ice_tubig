@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
     QCheckBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFormLayout,
     QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
     QSpinBox, QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QWidget,
+    QGraphicsDropShadowEffect
 )
 import qtawesome as qta
 from models.services.inventory_service import InventoryService
@@ -24,7 +25,47 @@ class StockPage(QWidget):
         self.tokens = tokens
         self.current_user = current_user
         self._stock_by_id = {}
+        self._apply_modern_styling()
         self._build_ui()
+
+    def _apply_modern_styling(self):
+        """Apply modern styling to buttons."""
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_1', '#5DADE2')}, stop:1 {self.tokens.get('accent_2', '#3498DB')});
+                color: white;
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 1px;
+                border: 2px solid transparent;
+                border-radius: 8px;
+                padding: 8px 16px;
+                cursor: pointer;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_2', '#3498DB')}, stop:1 #2E86C1);
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                box-shadow: 0 0 16px rgba(93, 173, 226, 0.5);
+            }}
+            QPushButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2E86C1, stop:1 #2874A6);
+                border: 2px solid rgba(255, 255, 255, 0.2);
+            }}
+            QPushButton:focus {{
+                outline: none;
+            }}
+        """)
+
+    def _add_card_shadow(self, widget):
+        """Add drop shadow effect to a card widget."""
+        shadow = QGraphicsDropShadowEffect(widget)
+        shadow.setBlurRadius(12)
+        shadow.setOffset(0, 2)
+        shadow.setColor(QColor(0, 0, 0, 40))
+        widget.setGraphicsEffect(shadow)
 
     def _build_ui(self):
         root = QVBoxLayout(self)

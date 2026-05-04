@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import date
-from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget, QGraphicsDropShadowEffect
 import qtawesome as qta
 from models.services.sales_service import SalesService
 from utils import format_currency, friendly_error, humanize_name, humanize_status, is_admin, is_staff
@@ -17,7 +18,82 @@ class SalesPage(QWidget):
         self._shift_logs = []
         self._active_search_query = ""
         self.setStyleSheet("background:transparent;")
+        self._apply_modern_styling()
         self._build_ui()
+
+    def _apply_modern_styling(self):
+        """Apply modern glassmorphic styling to all cards and components."""
+        self.setStyleSheet(f"""
+            QWidget {{ background: transparent; }}
+            QFrame[card="true"] {{
+                background: {self.tokens.get('bg_surface', 'rgba(8, 20, 38, 0.92)')};
+                border: 1px solid {self.tokens.get('card_border', 'rgba(93, 173, 226, 0.20)')};
+                border-radius: 12px;
+                padding: 0px;
+            }}
+            QLabel[pageTitle="true"] {{
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                font-size: 28px;
+                font-weight: 700;
+                background: transparent;
+            }}
+            QLabel[cardTitle="true"] {{
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                font-size: 14px;
+                font-weight: 600;
+                background: transparent;
+            }}
+            QLabel[kpiValue="true"] {{
+                color: {self.tokens.get('accent_1', '#5DADE2')};
+                font-size: 20px;
+                font-weight: 800;
+                background: transparent;
+            }}
+            QLabel[kpiLabel="true"] {{
+                color: {self.tokens.get('text_secondary', '#93C5E8')};
+                font-size: 12px;
+                background: transparent;
+            }}
+            QLabel[muted="true"] {{
+                color: {self.tokens.get('text_muted', '#5F9CC0')};
+                font-size: 13px;
+                background: transparent;
+            }}
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_1', '#5DADE2')}, stop:1 {self.tokens.get('accent_2', '#3498DB')});
+                color: white;
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 1px;
+                border: 2px solid transparent;
+                border-radius: 8px;
+                padding: 8px 16px;
+                cursor: pointer;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_2', '#3498DB')}, stop:1 #2E86C1);
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                box-shadow: 0 0 16px rgba(93, 173, 226, 0.5);
+            }}
+            QPushButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2E86C1, stop:1 #2874A6);
+                border: 2px solid rgba(255, 255, 255, 0.2);
+            }}
+            QPushButton:focus {{
+                outline: none;
+            }}
+        """)
+
+    def _add_card_shadow(self, widget):
+        """Add drop shadow effect to a card widget."""
+        shadow = QGraphicsDropShadowEffect(widget)
+        shadow.setBlurRadius(12)
+        shadow.setOffset(0, 2)
+        shadow.setColor(QColor(0, 0, 0, 40))
+        widget.setGraphicsEffect(shadow)
 
     def _build_ui(self):
         root = QVBoxLayout(self)
@@ -38,8 +114,8 @@ class SalesPage(QWidget):
         root.addLayout(header)
 
         # Shift controls
-        shift_card = QFrame(self); shift_card.setProperty("card", True)
-        shift_layout = QHBoxLayout(shift_card)
+        shift_card = QFrame(self); shift_card.setProperty("card", True); self._add_card_shadow(shift_card)
+        shift_layout = QHBoxLayout(shift_card); shift_layout.setContentsMargins(20, 16, 20, 16); shift_layout.setSpacing(12)
         sl = QLabel("Shift Attendance", shift_card); sl.setProperty('cardTitle', True)
         shift_layout.addWidget(sl)
         self.shift_schedule_label = QLabel("", shift_card)
@@ -58,8 +134,8 @@ class SalesPage(QWidget):
         root.addWidget(shift_card)
 
         # KPI cards
-        kpi_frame = QFrame(self); kpi_frame.setProperty("card", True)
-        kpi_grid = QGridLayout(kpi_frame)
+        kpi_frame = QFrame(self); kpi_frame.setProperty("card", True); self._add_card_shadow(kpi_frame)
+        kpi_grid = QGridLayout(kpi_frame); kpi_grid.setContentsMargins(20, 16, 20, 16); kpi_grid.setSpacing(12)
         self._total_card = self._metric_card(kpi_grid, 'Total Revenue', '\u20b1 0.00', col=0, accent=True)
         self._count_card = self._metric_card(kpi_grid, 'Transactions', '0', col=1)
         self._avg_card = self._metric_card(kpi_grid, 'Avg. Sale', '\u20b1 0.00', col=2)
@@ -67,8 +143,8 @@ class SalesPage(QWidget):
         root.addWidget(kpi_frame)
 
         # Size breakdown
-        breakdown_frame = QFrame(self); breakdown_frame.setProperty("card", True)
-        bd_layout = QHBoxLayout(breakdown_frame)
+        breakdown_frame = QFrame(self); breakdown_frame.setProperty("card", True); self._add_card_shadow(breakdown_frame)
+        bd_layout = QHBoxLayout(breakdown_frame); bd_layout.setContentsMargins(20, 16, 20, 16); bd_layout.setSpacing(12)
         bwl = QLabel('By Weight', breakdown_frame); bwl.setProperty('cardTitle', True)
         bd_layout.addWidget(bwl)
         self.kg_revenue_label = QLabel('No sales recorded yet.', breakdown_frame)
@@ -76,8 +152,8 @@ class SalesPage(QWidget):
         root.addWidget(breakdown_frame)
 
         # Transactions table
-        table_frame = QFrame(self); table_frame.setProperty("card", True)
-        table_layout = QVBoxLayout(table_frame)
+        table_frame = QFrame(self); table_frame.setProperty("card", True); self._add_card_shadow(table_frame)
+        table_layout = QVBoxLayout(table_frame); table_layout.setContentsMargins(20, 16, 20, 16)
         tl = QLabel('Transactions', table_frame); tl.setProperty('cardTitle', True)
         th = QHBoxLayout(); th.addWidget(tl); th.addStretch()
         self._row_count_label = QLabel('', table_frame); th.addWidget(self._row_count_label)
@@ -88,8 +164,8 @@ class SalesPage(QWidget):
         root.addWidget(table_frame, 1)
 
         # Admin shift-performance table
-        self.shift_frame = QFrame(self); self.shift_frame.setProperty("card", True)
-        sf_layout = QVBoxLayout(self.shift_frame)
+        self.shift_frame = QFrame(self); self.shift_frame.setProperty("card", True); self._add_card_shadow(self.shift_frame)
+        sf_layout = QVBoxLayout(self.shift_frame); sf_layout.setContentsMargins(20, 16, 20, 16)
         espl = QLabel('Employee Shift Performance', self.shift_frame); espl.setProperty('cardTitle', True)
         sh = QHBoxLayout(); sh.addWidget(espl); sh.addStretch()
         self.shift_count_label = QLabel('', self.shift_frame); sh.addWidget(self.shift_count_label)

@@ -1,8 +1,9 @@
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel,
     QListWidget, QListWidgetItem, QMessageBox, QPushButton, QScrollArea,
-    QTextEdit, QVBoxLayout, QWidget
+    QTextEdit, QVBoxLayout, QWidget, QGraphicsDropShadowEffect
 )
 import qtawesome as qta
 from models.services.announcement_service import AnnouncementService
@@ -19,7 +20,71 @@ class AnnouncementsPage(QWidget):
         self.current_user = current_user
         self.tokens = tokens
         self._user_is_admin = is_admin(current_user)
+        self._apply_modern_styling()
         self._build_ui()
+
+    def _apply_modern_styling(self):
+        """Apply modern glassmorphic styling to all cards and components."""
+        self.setStyleSheet(f"""
+            QWidget {{ background: transparent; }}
+            QFrame[card="true"] {{
+                background: {self.tokens.get('bg_surface', 'rgba(8, 20, 38, 0.92)')};
+                border: 1px solid {self.tokens.get('card_border', 'rgba(93, 173, 226, 0.20)')};
+                border-radius: 12px;
+                padding: 0px;
+            }}
+            QLabel[pageTitle="true"] {{
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                font-size: 28px;
+                font-weight: 700;
+                background: transparent;
+            }}
+            QLabel[cardTitle="true"] {{
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                font-size: 14px;
+                font-weight: 600;
+                background: transparent;
+            }}
+            QLabel[muted="true"] {{
+                color: {self.tokens.get('text_muted', '#5F9CC0')};
+                font-size: 13px;
+                background: transparent;
+            }}
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_1', '#5DADE2')}, stop:1 {self.tokens.get('accent_2', '#3498DB')});
+                color: white;
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 1px;
+                border: 2px solid transparent;
+                border-radius: 8px;
+                padding: 8px 16px;
+                cursor: pointer;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_2', '#3498DB')}, stop:1 #2E86C1);
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                box-shadow: 0 0 16px rgba(93, 173, 226, 0.5);
+            }}
+            QPushButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2E86C1, stop:1 #2874A6);
+                border: 2px solid rgba(255, 255, 255, 0.2);
+            }}
+            QPushButton:focus {{
+                outline: none;
+            }}
+        """)
+
+    def _add_card_shadow(self, widget):
+        """Add drop shadow effect to a card widget."""
+        shadow = QGraphicsDropShadowEffect(widget)
+        shadow.setBlurRadius(12)
+        shadow.setOffset(0, 2)
+        shadow.setColor(QColor(0, 0, 0, 40))
+        widget.setGraphicsEffect(shadow)
 
     def _build_ui(self):
         layout = QVBoxLayout(self); layout.setContentsMargins(10,10,10,10); layout.setSpacing(10)
@@ -61,8 +126,8 @@ class AnnouncementsPage(QWidget):
             item.setHidden(bool(text and text not in str(item.data(Qt.ItemDataRole.UserRole) or "").lower()))
 
     def _create_user_announcement_widget(self, ann):
-        widget = QFrame(self); widget.setProperty('card', True)
-        layout = QVBoxLayout(widget); layout.setContentsMargins(12,10,12,10); layout.setSpacing(6)
+        widget = QFrame(self); widget.setProperty('card', True); self._add_card_shadow(widget)
+        layout = QVBoxLayout(widget); layout.setContentsMargins(16, 12, 16, 12); layout.setSpacing(8)
         title_row = QHBoxLayout()
         tl = QLabel(ann.title); tl.setProperty('cardTitle', True); title_row.addWidget(tl)
         if not ann.is_read:
@@ -80,8 +145,8 @@ class AnnouncementsPage(QWidget):
         layout.addLayout(footer); apply_card_polish(widget); return widget
 
     def _create_admin_announcement_widget(self, ann):
-        widget = QFrame(self); widget.setProperty('card', True)
-        layout = QVBoxLayout(widget); layout.setContentsMargins(12,10,12,10); layout.setSpacing(6)
+        widget = QFrame(self); widget.setProperty('card', True); self._add_card_shadow(widget)
+        layout = QVBoxLayout(widget); layout.setContentsMargins(16, 12, 16, 12); layout.setSpacing(8)
         title_row = QHBoxLayout()
         tl = QLabel(ann.title); tl.setProperty('cardTitle', True)
         title_row.addWidget(tl); title_row.addStretch()

@@ -1,7 +1,7 @@
 from typing import List
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QPainter, QPen
-from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget, QGraphicsDropShadowEffect
 import qtawesome as qta
 from models.sale import Sale
 from models.services.inventory_service import InventoryService
@@ -62,11 +62,102 @@ class DashboardPage(QWidget):
         self.sales_service = sales_service
         self.tokens = tokens; self.current_user = current_user
         self.setStyleSheet("background:transparent;")
+        self._apply_modern_styling()
         self._build_ui()
         self.auto_refresh_timer = QTimer(self)
         self.auto_refresh_timer.timeout.connect(self.refresh)
         self.auto_refresh_timer.start(30000)
         self.refresh()
+
+    def closeEvent(self, event):
+        self.auto_refresh_timer.stop(); super().closeEvent(event)
+
+    def _apply_modern_styling(self):
+        """Apply modern glassmorphic styling to all cards and components."""
+        self.setStyleSheet(f"""
+            QWidget {{ background: transparent; }}
+            QFrame[card="true"] {{
+                background: {self.tokens.get('bg_surface', 'rgba(8, 20, 38, 0.92)')};
+                border: 1px solid {self.tokens.get('card_border', 'rgba(93, 173, 226, 0.20)')};
+                border-radius: 12px;
+                padding: 0px;
+            }}
+            QFrame[panel="true"] {{
+                background: {self.tokens.get('bg_elevated', 'rgba(16, 32, 58, 0.90)')};
+                border: 1px solid {self.tokens.get('border', 'rgba(93, 173, 226, 0.25)')};
+                border-radius: 8px;
+            }}
+            QLabel[pageTitle="true"] {{
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                font-size: 28px;
+                font-weight: 700;
+                background: transparent;
+            }}
+            QLabel[sectionLabel="true"] {{
+                color: {self.tokens.get('accent_1', '#5DADE2')};
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 2px;
+                background: transparent;
+                text-transform: uppercase;
+            }}
+            QLabel[cardTitle="true"] {{
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                font-size: 14px;
+                font-weight: 600;
+                background: transparent;
+            }}
+            QLabel[kpiValue="true"] {{
+                color: {self.tokens.get('accent_1', '#5DADE2')};
+                font-size: 22px;
+                font-weight: 800;
+                background: transparent;
+            }}
+            QLabel[kpiLabel="true"] {{
+                color: {self.tokens.get('text_secondary', '#93C5E8')};
+                font-size: 12px;
+                background: transparent;
+            }}
+            QLabel[muted="true"] {{
+                color: {self.tokens.get('text_muted', '#5F9CC0')};
+                font-size: 13px;
+                background: transparent;
+            }}
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_1', '#5DADE2')}, stop:1 {self.tokens.get('accent_2', '#3498DB')});
+                color: white;
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 1px;
+                border: 2px solid transparent;
+                border-radius: 8px;
+                padding: 8px 16px;
+                cursor: pointer;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_2', '#3498DB')}, stop:1 #2E86C1);
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                box-shadow: 0 0 16px rgba(93, 173, 226, 0.5);
+            }}
+            QPushButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2E86C1, stop:1 #2874A6);
+                border: 2px solid rgba(255, 255, 255, 0.2);
+            }}
+            QPushButton:focus {{
+                outline: none;
+            }}
+        """)
+
+    def _add_card_shadow(self, widget):
+        """Add drop shadow effect to a card widget."""
+        shadow = QGraphicsDropShadowEffect(widget)
+        shadow.setBlurRadius(12)
+        shadow.setOffset(0, 2)
+        shadow.setColor(QColor(0, 0, 0, 40))
+        widget.setGraphicsEffect(shadow)
 
     def closeEvent(self, event):
         self.auto_refresh_timer.stop(); super().closeEvent(event)
@@ -85,6 +176,7 @@ class DashboardPage(QWidget):
 
         # Header
         hf = QFrame(self); hl = QHBoxLayout(hf); ll = QVBoxLayout()
+        hf.setProperty("card", True); self._add_card_shadow(hf)
         t = QLabel('Dashboard', hf); t.setProperty('pageTitle', True)
         s = QLabel('Real-time stock availability, sales performance, and activity trends.', hf)
         s.setProperty('muted', True)
@@ -93,8 +185,8 @@ class DashboardPage(QWidget):
         root.addWidget(hf)
 
         # Inventory status
-        inv_card = QFrame(self); inv_card.setProperty("card", True)
-        inv = QGridLayout(inv_card)
+        inv_card = QFrame(self); inv_card.setProperty("card", True); self._add_card_shadow(inv_card)
+        inv = QGridLayout(inv_card); inv.setContentsMargins(20, 16, 20, 16); inv.setSpacing(12)
         il = QLabel('INVENTORY STATUS', inv_card); il.setProperty('sectionLabel', True)
         inv.addWidget(il, 0, 0, 1, 4)
         self.available_label = self._metric_item(inv, 'Ready to Sell', 1, 0, self.tokens['success'])
@@ -104,7 +196,7 @@ class DashboardPage(QWidget):
         root.addWidget(inv_card)
 
         # Revenue comparison
-        cmp = QFrame(self); cmp.setProperty("card", True); cl = QGridLayout(cmp)
+        cmp = QFrame(self); cmp.setProperty("card", True); self._add_card_shadow(cmp); cl = QGridLayout(cmp); cl.setContentsMargins(20, 16, 20, 16); cl.setSpacing(12)
         clbl = QLabel('REVENUE COMPARISON', cmp); clbl.setProperty('sectionLabel', True)
         cl.addWidget(clbl, 0, 0, 1, 4)
         self.this_month_label = self._metric_item(cl, 'This Month', 1, 0, self.tokens['accent_1'])
@@ -114,8 +206,8 @@ class DashboardPage(QWidget):
         root.addWidget(cmp)
 
         # Admin notifications
-        self.notifications_card = QFrame(self); self.notifications_card.setProperty("card", True)
-        nl = QVBoxLayout(self.notifications_card); nh = QHBoxLayout()
+        self.notifications_card = QFrame(self); self.notifications_card.setProperty("card", True); self._add_card_shadow(self.notifications_card)
+        nl = QVBoxLayout(self.notifications_card); nl.setContentsMargins(20, 16, 20, 16); nh = QHBoxLayout()
         nt = QLabel("Staff Activity Notifications", self.notifications_card)
         nt.setProperty('cardTitle', True)
         self.notifications_count = QLabel("", self.notifications_card)
@@ -127,7 +219,7 @@ class DashboardPage(QWidget):
         if is_admin(self.current_user): root.addWidget(self.notifications_card)
 
         # Sales breakdown
-        bd = QFrame(self); bd.setProperty("card", True); bdl = QVBoxLayout(bd)
+        bd = QFrame(self); bd.setProperty("card", True); self._add_card_shadow(bd); bdl = QVBoxLayout(bd); bdl.setContentsMargins(20, 16, 20, 16)
         bdt = QLabel('Sales Breakdown', bd); bdt.setProperty('cardTitle', True)
         self.breakdown_text = QLabel('Loading\u2026', bd)
         self.breakdown_text.setProperty('muted', True)
@@ -137,14 +229,14 @@ class DashboardPage(QWidget):
         # Pie charts row
         charts_row = QHBoxLayout()
         for attr, title in [('stock_pie_chart', 'Stock Distribution'), ('revenue_pie_chart', 'Revenue by Product')]:
-            card = QFrame(self); card.setProperty("card", True); cl = QVBoxLayout(card)
+            card = QFrame(self); card.setProperty("card", True); self._add_card_shadow(card); cl = QVBoxLayout(card); cl.setContentsMargins(20, 16, 20, 16)
             ct = QLabel(title, card); ct.setProperty('cardTitle', True); cl.addWidget(ct)
             chart = AnimatedPieChart(self.tokens, card); cl.addWidget(chart); charts_row.addWidget(card)
             setattr(self, attr, chart)
         root.addLayout(charts_row)
 
         # Revenue chart
-        cc = QFrame(self); cc.setProperty("card", True); ccl = QVBoxLayout(cc)
+        cc = QFrame(self); cc.setProperty("card", True); self._add_card_shadow(cc); ccl = QVBoxLayout(cc); ccl.setContentsMargins(20, 16, 20, 16)
         ch = QHBoxLayout()
         cht = QLabel("Total Revenue (30 Days)", cc); cht.setProperty('cardTitle', True)
         self.chart_total_label = QLabel("\u20b1 0.00", cc)
@@ -155,13 +247,13 @@ class DashboardPage(QWidget):
 
         # Data tables
         tw = QHBoxLayout()
-        rc = QFrame(self); rc.setProperty("card", True); rl = QVBoxLayout(rc)
+        rc = QFrame(self); rc.setProperty("card", True); self._add_card_shadow(rc); rl = QVBoxLayout(rc); rl.setContentsMargins(20, 16, 20, 16)
         rs_label = QLabel("Recent Sales", rc); rs_label.setProperty('cardTitle', True)
         rl.addWidget(rs_label)
         self.recent_sales_table = ModernTable(rc, columns=("sale_id","seller","product","shift","price","sold_at"), tokens=self.tokens)
         rc.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         rl.addWidget(self.recent_sales_table); tw.addWidget(rc, 2)
-        sc = QFrame(self); sc.setProperty("card", True); sl = QVBoxLayout(sc)
+        sc = QFrame(self); sc.setProperty("card", True); self._add_card_shadow(sc); sl = QVBoxLayout(sc); sl.setContentsMargins(20, 16, 20, 16)
         ss_label = QLabel("Live Stock Snapshot", sc); ss_label.setProperty('cardTitle', True)
         sl.addWidget(ss_label)
         self.stock_snapshot_table = ModernTable(sc, columns=("stock_id","product","status","weight","price"), tokens=self.tokens)
@@ -170,11 +262,11 @@ class DashboardPage(QWidget):
         tw.setStretch(0, 2); tw.setStretch(1, 1); root.addLayout(tw, 1)
 
     def _metric_item(self, parent_grid, title, row, col, accent=None):
-        frame = QFrame(self); frame.setProperty("card", True); layout = QVBoxLayout(frame)
-        frame.setProperty("panel", True)
+        frame = QFrame(self); frame.setProperty("card", True); frame.setProperty("panel", True); self._add_card_shadow(frame)
+        layout = QVBoxLayout(frame); layout.setContentsMargins(16, 12, 16, 12); layout.setSpacing(6)
         val = QLabel("—", frame); val.setProperty('kpiValue', True)
         if accent:
-            val.setStyleSheet(f"font-size:22px;font-weight:800;color:{accent};")
+            val.setStyleSheet(f"font-size:24px;font-weight:800;color:{accent};background:transparent;")
         lbl = QLabel(title, frame); lbl.setProperty('kpiLabel', True)
         layout.addWidget(val); layout.addWidget(lbl); frame.value_label = val
         parent_grid.addWidget(frame, row, col); return frame

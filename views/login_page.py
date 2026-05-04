@@ -132,17 +132,24 @@ class LoginPage(QWidget):
                 font-size: 16px;
                 font-weight: 700;
                 letter-spacing: 3px;
-                border: none;
+                border: 2px solid transparent;
                 border-radius: 24px;
                 padding: 12px 0;
+                cursor: pointer;
             }
             QPushButton#loginButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 #3498DB, stop:1 #2E86C1);
+                border: 2px solid rgba(255, 255, 255, 0.5);
+                box-shadow: 0 0 24px rgba(93, 173, 226, 0.6);
             }
             QPushButton#loginButton:pressed {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 #2E86C1, stop:1 #2874A6);
+                border: 2px solid rgba(255, 255, 255, 0.3);
+            }
+            QPushButton#loginButton:focus {
+                outline: none;
             }
         """)
         login_button.clicked.connect(self._on_login_clicked)
@@ -191,10 +198,12 @@ class LoginPage(QWidget):
             QFrame#inputContainer {
                 background: rgba(220, 230, 240, 0.6);
                 border-radius: 28px;
-                border: 1px solid rgba(200, 215, 230, 0.8);
+                border: 2px solid rgba(200, 215, 230, 0.8);
             }
             QFrame#inputContainer:hover {
-                border: 1px solid rgba(93, 173, 226, 0.6);
+                border: 2px solid rgba(93, 173, 226, 0.8);
+                background: rgba(220, 235, 250, 0.8);
+                box-shadow: 0 0 16px rgba(93, 173, 226, 0.3);
             }
         """)
         container.setMinimumHeight(52)
@@ -237,7 +246,20 @@ class LoginPage(QWidget):
             toggle_btn.setIconSize(QSize(20, 20))
             toggle_btn.setFlat(True)
             toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            toggle_btn.setStyleSheet("background: transparent; border: none; padding: 4px;")
+            toggle_btn.setStyleSheet("""
+                QPushButton {
+                    background: transparent;
+                    border: none;
+                    padding: 4px;
+                    border-radius: 4px;
+                }
+                QPushButton:hover {
+                    background: rgba(93, 173, 226, 0.1);
+                }
+                QPushButton:pressed {
+                    background: rgba(93, 173, 226, 0.2);
+                }
+            """)
             toggle_btn.setCheckable(True)
             toggle_btn.toggled.connect(
                 lambda checked, le=line_edit: le.setEchoMode(

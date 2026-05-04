@@ -1,7 +1,7 @@
 import re
 from PyQt6.QtCore import QRegularExpression
-from PyQt6.QtGui import QRegularExpressionValidator
-from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtGui import QRegularExpressionValidator, QColor
+from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget, QGraphicsDropShadowEffect
 import qtawesome as qta
 from models.services.auth_service import AuthService
 from models.services.settings_service import SettingsService
@@ -19,14 +19,100 @@ class SettingsPage(QWidget):
         self.tokens = tokens
         self._selected_user_id = None
         self.setStyleSheet("background:transparent;")
+        self._apply_modern_styling()
         self._build_ui()
+
+    def _apply_modern_styling(self):
+        """Apply modern glassmorphic styling to all cards and components."""
+        self.setStyleSheet(f"""
+            QWidget {{ background: transparent; }}
+            QFrame[card="true"] {{
+                background: {self.tokens.get('bg_surface', 'rgba(8, 20, 38, 0.92)')};
+                border: 1px solid {self.tokens.get('card_border', 'rgba(93, 173, 226, 0.20)')};
+                border-radius: 12px;
+                padding: 0px;
+            }}
+            QLabel[pageTitle="true"] {{
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                font-size: 28px;
+                font-weight: 700;
+                background: transparent;
+            }}
+            QLabel[cardTitle="true"] {{
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                font-size: 14px;
+                font-weight: 600;
+                background: transparent;
+            }}
+            QLabel[muted="true"] {{
+                color: {self.tokens.get('text_muted', '#5F9CC0')};
+                font-size: 13px;
+                background: transparent;
+            }}
+            QLineEdit {{
+                background: {self.tokens.get('bg_input', 'rgba(6, 16, 32, 0.88)')};
+                border: 1px solid {self.tokens.get('input_border', 'rgba(93, 173, 226, 0.30)')};
+                border-radius: 6px;
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                padding: 8px 12px;
+                font-size: 13px;
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {self.tokens.get('accent_1', '#5DADE2')};
+            }}
+            QComboBox {{
+                background: {self.tokens.get('bg_input', 'rgba(6, 16, 32, 0.88)')};
+                border: 1px solid {self.tokens.get('input_border', 'rgba(93, 173, 226, 0.30)')};
+                border-radius: 6px;
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                padding: 6px 10px;
+                font-size: 13px;
+            }}
+            QComboBox:focus {{
+                border: 2px solid {self.tokens.get('accent_1', '#5DADE2')};
+            }}
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_1', '#5DADE2')}, stop:1 {self.tokens.get('accent_2', '#3498DB')});
+                color: white;
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 1px;
+                border: 2px solid transparent;
+                border-radius: 8px;
+                padding: 8px 16px;
+                cursor: pointer;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_2', '#3498DB')}, stop:1 #2E86C1);
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                box-shadow: 0 0 16px rgba(93, 173, 226, 0.5);
+            }}
+            QPushButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2E86C1, stop:1 #2874A6);
+                border: 2px solid rgba(255, 255, 255, 0.2);
+            }}
+            QPushButton:focus {{
+                outline: none;
+            }}
+        """)
+
+    def _add_card_shadow(self, widget):
+        """Add drop shadow effect to a card widget."""
+        shadow = QGraphicsDropShadowEffect(widget)
+        shadow.setBlurRadius(12)
+        shadow.setOffset(0, 2)
+        shadow.setColor(QColor(0, 0, 0, 40))
+        widget.setGraphicsEffect(shadow)
 
     def _build_ui(self):
         root = QVBoxLayout(self)
         title = QLabel('Settings', self); title.setProperty('pageTitle', True)
         subtitle = QLabel('Manage theme and system preferences.', self)
         subtitle.setProperty('muted', True)
-        card = QFrame(self); card.setProperty("card", True); grid = QGridLayout(card)
+        card = QFrame(self); card.setProperty("card", True); self._add_card_shadow(card); grid = QGridLayout(card); grid.setContentsMargins(20, 16, 20, 16)
         grid.addWidget(QLabel('APP THEME', card), 0, 0)
         grid.addWidget(QLabel('Switch between dark mode and light mode.', card), 1, 0)
         self.theme_menu = QComboBox(card); self.theme_menu.addItems(['Light', 'Dark'])
@@ -39,8 +125,8 @@ class SettingsPage(QWidget):
 
         if is_admin(self.current_user):
             # Shift schedule
-            shift_card = QFrame(self); shift_card.setProperty("card", True)
-            sg = QGridLayout(shift_card)
+            shift_card = QFrame(self); shift_card.setProperty("card", True); self._add_card_shadow(shift_card)
+            sg = QGridLayout(shift_card); sg.setContentsMargins(20, 16, 20, 16)
             sg.addWidget(QLabel("SHIFT SCHEDULE", shift_card), 0, 0, 1, 2)
             sg.addWidget(QLabel("Set company-wide On Site / Time Out schedule (24h format).", shift_card), 1, 0, 1, 2)
             self.shift_start_input = QLineEdit(shift_card); self.shift_start_input.setPlaceholderText("08:00")
@@ -56,8 +142,8 @@ class SettingsPage(QWidget):
             root.addWidget(shift_card)
 
             # Account management
-            users_card = QFrame(self); users_card.setProperty("card", True)
-            ug = QGridLayout(users_card)
+            users_card = QFrame(self); users_card.setProperty("card", True); self._add_card_shadow(users_card)
+            ug = QGridLayout(users_card); ug.setContentsMargins(20, 16, 20, 16)
             ug.addWidget(QLabel("ACCOUNT MANAGEMENT", users_card), 0, 0, 1, 2)
             ug.addWidget(QLabel("Create new admin or employee accounts.", users_card), 1, 0, 1, 2)
             self.new_username = QLineEdit(users_card); self.new_username.setPlaceholderText("New username"); self.new_username.setMaxLength(50)
@@ -74,7 +160,7 @@ class SettingsPage(QWidget):
             root.addWidget(users_card)
 
             # Accounts table
-            at_card = QFrame(self); at_card.setProperty("card", True); atl = QVBoxLayout(at_card)
+            at_card = QFrame(self); at_card.setProperty("card", True); self._add_card_shadow(at_card); atl = QVBoxLayout(at_card); atl.setContentsMargins(20, 16, 20, 16)
             ah = QHBoxLayout(); ah.addWidget(QLabel("USER ACCOUNTS (ADMIN)", at_card)); ah.addStretch()
             self.accounts_count = QLabel("", at_card); ah.addWidget(self.accounts_count); atl.addLayout(ah)
             self.accounts_table = ModernTable(at_card,

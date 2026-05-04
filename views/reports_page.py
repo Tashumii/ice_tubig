@@ -4,7 +4,8 @@ from models.services.report_service import ReportService
 from datetime import datetime, timedelta
 import qtawesome as qta
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
+from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget, QGraphicsDropShadowEffect
 from utils import format_currency
 
 
@@ -16,7 +17,90 @@ class ReportsPage(QWidget):
         self.last_refresh_time = datetime.now() - timedelta(seconds=2)
         self.refresh_cooldown_seconds = 1
         self.setStyleSheet("background:transparent;")
+        self._apply_modern_styling()
         self._build_ui()
+
+    def _apply_modern_styling(self):
+        """Apply modern glassmorphic styling to all cards and components."""
+        self.setStyleSheet(f"""
+            QWidget {{ background: transparent; }}
+            QFrame[card="true"] {{
+                background: {self.tokens.get('bg_surface', 'rgba(8, 20, 38, 0.92)')};
+                border: 1px solid {self.tokens.get('card_border', 'rgba(93, 173, 226, 0.20)')};
+                border-radius: 12px;
+                padding: 0px;
+            }}
+            QLabel[pageTitle="true"] {{
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                font-size: 28px;
+                font-weight: 700;
+                background: transparent;
+            }}
+            QLabel[cardTitle="true"] {{
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                font-size: 14px;
+                font-weight: 600;
+                background: transparent;
+            }}
+            QLabel[sectionLabel="true"] {{
+                color: {self.tokens.get('accent_1', '#5DADE2')};
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 2px;
+                background: transparent;
+                text-transform: uppercase;
+            }}
+            QLabel[kpiValue="true"] {{
+                color: {self.tokens.get('accent_1', '#5DADE2')};
+                font-size: 18px;
+                font-weight: 800;
+                background: transparent;
+            }}
+            QLabel[kpiLabel="true"] {{
+                color: {self.tokens.get('text_secondary', '#93C5E8')};
+                font-size: 12px;
+                background: transparent;
+            }}
+            QLabel[muted="true"] {{
+                color: {self.tokens.get('text_muted', '#5F9CC0')};
+                font-size: 13px;
+                background: transparent;
+            }}
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_1', '#5DADE2')}, stop:1 {self.tokens.get('accent_2', '#3498DB')});
+                color: white;
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 1px;
+                border: 2px solid transparent;
+                border-radius: 8px;
+                padding: 8px 16px;
+                cursor: pointer;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.tokens.get('accent_2', '#3498DB')}, stop:1 #2E86C1);
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                box-shadow: 0 0 16px rgba(93, 173, 226, 0.5);
+            }}
+            QPushButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2E86C1, stop:1 #2874A6);
+                border: 2px solid rgba(255, 255, 255, 0.2);
+            }}
+            QPushButton:focus {{
+                outline: none;
+            }}
+        """)
+
+    def _add_card_shadow(self, widget):
+        """Add drop shadow effect to a card widget."""
+        shadow = QGraphicsDropShadowEffect(widget)
+        shadow.setBlurRadius(12)
+        shadow.setOffset(0, 2)
+        shadow.setColor(QColor(0, 0, 0, 40))
+        widget.setGraphicsEffect(shadow)
 
     def _build_ui(self):
         root = QVBoxLayout(self)
@@ -71,8 +155,8 @@ class ReportsPage(QWidget):
         self._set_table_height(self.products_table, 6)
 
     def _section_card(self, parent, title, section_label=''):
-        card = QFrame(parent); card.setProperty("card", True)
-        v = QVBoxLayout(card); h = QHBoxLayout()
+        card = QFrame(parent); card.setProperty("card", True); self._add_card_shadow(card)
+        v = QVBoxLayout(card); v.setContentsMargins(20, 16, 20, 16); h = QHBoxLayout()
         tl = QLabel(title, card); tl.setProperty('cardTitle', True)
         h.addWidget(tl); h.addStretch()
         if section_label:

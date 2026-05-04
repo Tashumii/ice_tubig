@@ -367,10 +367,10 @@ class DatabaseManager:
                 l.user_id,
                 u.username,
                 l.shift_date,
-                l.expected_in,
-                l.expected_out,
-                l.actual_in,
-                l.actual_out,
+                TIME_FORMAT(l.expected_in, '%H:%i') AS expected_in,
+                TIME_FORMAT(l.expected_out, '%H:%i') AS expected_out,
+                DATE_FORMAT(l.actual_in, '%Y-%m-%d %H:%i') AS actual_in,
+                DATE_FORMAT(l.actual_out, '%Y-%m-%d %H:%i') AS actual_out,
                 l.attendance_status,
                 l.created_at,
                 l.updated_at
@@ -671,19 +671,19 @@ class DatabaseManager:
         return str(row[0]) if row and row[0] else f"User #{user_id}"
 
     def _fetch_today_shift_state(self, user_id: int):
+        # Use the view which has proper formatting applied
         return self._execute_query(
             """
             SELECT
-                l.log_id,
-                u.username,
-                DATE_FORMAT(l.expected_in, '%%H:%%i') AS expected_in,
-                DATE_FORMAT(l.expected_out, '%%H:%%i') AS expected_out,
-                DATE_FORMAT(l.actual_in, '%%Y-%%m-%%d %%H:%%i') AS actual_in,
-                DATE_FORMAT(l.actual_out, '%%Y-%%m-%%d %%H:%%i') AS actual_out,
-                l.attendance_status
-            FROM employee_shift_logs l
-            INNER JOIN users u ON u.user_id = l.user_id
-            WHERE l.user_id = %s AND l.shift_date = CURRENT_DATE()
+                log_id,
+                username,
+                expected_in,
+                expected_out,
+                actual_in,
+                actual_out,
+                attendance_status
+            FROM vw_shift_attendance
+            WHERE user_id = %s AND shift_date = CURRENT_DATE()
             """,
             (user_id,),
             fetchone=True,
@@ -867,24 +867,24 @@ class DatabaseManager:
             )
 
     def fetch_shift_logs(self, user_id: Optional[int] = None):
+        # Use the view which already has formatting applied
         query = """
             SELECT
-                l.log_id,
-                u.username,
-                l.shift_date,
-                DATE_FORMAT(l.expected_in, '%%H:%%i') AS expected_in,
-                DATE_FORMAT(l.expected_out, '%%H:%%i') AS expected_out,
-                DATE_FORMAT(l.actual_in, '%%Y-%%m-%%d %%H:%%i') AS actual_in,
-                DATE_FORMAT(l.actual_out, '%%Y-%%m-%%d %%H:%%i') AS actual_out,
-                l.attendance_status
-            FROM employee_shift_logs l
-            INNER JOIN users u ON u.user_id = l.user_id
+                log_id,
+                username,
+                shift_date,
+                expected_in,
+                expected_out,
+                actual_in,
+                actual_out,
+                attendance_status
+            FROM vw_shift_attendance
         """
         params = ()
         if user_id is not None:
-            query += " WHERE l.user_id = %s"
+            query += " WHERE user_id = %s"
             params = (user_id,)
-        query += " ORDER BY l.shift_date DESC, l.updated_at DESC"
+        query += " ORDER BY shift_date DESC, updated_at DESC"
         return self._execute_query(query, params if params else None, fetchall=True) or []
 
     def fetch_available_product_types(self):
