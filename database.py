@@ -1242,7 +1242,7 @@ class DatabaseManager:
         except DatabaseError as exc:
             self._raise_error("Failed to reset user password", exc)
 
-    # ==================== REPORTING METHODS ====================
+    #REPORTING METHODS
     def fetch_revenue_summary(self) -> Dict[str, float]:
         """Get revenue summary: total, this_month, this_year."""
         try:
@@ -1582,4 +1582,34 @@ class DatabaseManager:
             WHERE r.role_name = 'staff' AND u.is_active = 1
             ORDER BY u.username
         """
+        return self._execute_query(query, fetchall=True) or []
+
+
+    def fetch_stock_availability_details(self) -> List[Tuple]:
+        """Get stock availability with minutes until available (uses vw_stock_availability)."""
+        query = "SELECT * FROM vw_stock_availability ORDER BY minutes_until_available ASC"
+        return self._execute_query(query, fetchall=True) or []
+
+    def fetch_sales_with_stock_details(self) -> List[Tuple]:
+        """Get sales data with stock and seller info (uses vw_sales_with_stock)."""
+        query = "SELECT * FROM vw_sales_with_stock ORDER BY sale_time DESC"
+        return self._execute_query(query, fetchall=True) or []
+
+    def fetch_daily_sales_summary(self, days: int = 30) -> List[Tuple]:
+        """Get daily sales summary for reporting (uses vw_daily_sales_summary)."""
+        query = """
+            SELECT * FROM vw_daily_sales_summary
+            WHERE sale_date >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+            ORDER BY sale_date DESC
+        """
+        return self._execute_query(query, (days,), fetchall=True) or []
+
+    def fetch_available_products_inventory(self) -> List[Tuple]:
+        """Get inventory of available products (uses vw_available_products)."""
+        query = "SELECT * FROM vw_available_products ORDER BY available_count DESC, product_name ASC"
+        return self._execute_query(query, fetchall=True) or []
+
+    def fetch_activity_log_summary_by_type(self) -> List[Tuple]:
+        """Get activity log summary grouped by event type (uses vw_activity_log_summary)."""
+        query = "SELECT * FROM vw_activity_log_summary ORDER BY events_count DESC"
         return self._execute_query(query, fetchall=True) or []
