@@ -89,18 +89,18 @@ class ModernTable(QWidget):
                 background: transparent;
             }}
             QTableWidget::item:hover {{
-                background-color: rgba(93, 173, 226, 0.12);
-                color: {t.get('accent_1', '#5DADE2')};
+                background-color: rgba(100, 184, 224, 0.15);
+                color: {t.get('accent_1', '#64B8E0')};
             }}
             QTableWidget::item:selected {{
-                color: {t.get('accent_1', '#5DADE2')};
-                background: rgba(93, 173, 226, 0.08);
-                border-left: 3px solid {t.get('accent_1', '#5DADE2')};
+                color: {t.get('accent_1', '#64B8E0')};
+                background: rgba(100, 184, 224, 0.12);
+                border-left: 3px solid {t.get('accent_1', '#64B8E0')};
                 font-weight: 600;
             }}
             QHeaderView::section {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {t.get('accent_2', '#3498DB')}, stop:1 {t.get('accent_1', '#5DADE2')});
+                    stop:0 {t.get('accent_2', '#3FA9D6')}, stop:1 {t.get('accent_1', '#64B8E0')});
                 color: #FFFFFF;
                 border: none;
                 padding: 10px 12px;
@@ -115,7 +115,7 @@ class ModernTable(QWidget):
                 border-top-right-radius: 10px;
             }}
             QHeaderView::section:hover {{
-                background: {t.get('accent_2', '#3498DB')};
+                background: {t.get('accent_2', '#3FA9D6')};
             }}
         """)
 

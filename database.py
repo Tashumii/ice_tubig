@@ -112,6 +112,10 @@ class DatabaseManager:
                 password_hash VARCHAR(64) NOT NULL,
                 is_active TINYINT(1) NOT NULL DEFAULT 1,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                shift_start_time TIME NULL,
+                shift_end_time TIME NULL,
+                night_shift_start_time TIME NULL,
+                night_shift_end_time TIME NULL,
                 INDEX (username)
             )
             """,
@@ -130,7 +134,9 @@ class DatabaseManager:
                 freeze_duration_hours INT NOT NULL DEFAULT 3,
                 theme VARCHAR(20) NOT NULL DEFAULT 'light',
                 shift_start_time TIME NOT NULL DEFAULT '08:00:00',
-                shift_end_time TIME NOT NULL DEFAULT '17:00:00'
+                shift_end_time TIME NOT NULL DEFAULT '17:00:00',
+                night_shift_start_time TIME NULL,
+                night_shift_end_time TIME NULL
             )
             """,
             """
@@ -196,9 +202,11 @@ class DatabaseManager:
                 created_by_user_id INT NOT NULL,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 is_active TINYINT(1) NOT NULL DEFAULT 1,
+                deleted_at DATETIME NULL,
                 FOREIGN KEY (created_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
                 INDEX idx_created_at (created_at),
-                INDEX idx_is_active (is_active)
+                INDEX idx_is_active (is_active),
+                INDEX idx_deleted_at (deleted_at)
             )
             """,
             """
@@ -281,6 +289,30 @@ class DatabaseManager:
         )
         self._execute_safe_schema(
             "ALTER TABLE system_settings ADD COLUMN shift_end_time TIME NOT NULL DEFAULT '17:00:00'",
+            ignore_error_codes=(1060,),
+        )
+        self._execute_safe_schema(
+            "ALTER TABLE users ADD COLUMN shift_start_time TIME NULL",
+            ignore_error_codes=(1060,),
+        )
+        self._execute_safe_schema(
+            "ALTER TABLE users ADD COLUMN shift_end_time TIME NULL",
+            ignore_error_codes=(1060,),
+        )
+        self._execute_safe_schema(
+            "ALTER TABLE users ADD COLUMN night_shift_start_time TIME NULL",
+            ignore_error_codes=(1060,),
+        )
+        self._execute_safe_schema(
+            "ALTER TABLE users ADD COLUMN night_shift_end_time TIME NULL",
+            ignore_error_codes=(1060,),
+        )
+        self._execute_safe_schema(
+            "ALTER TABLE system_settings ADD COLUMN night_shift_start_time TIME NULL",
+            ignore_error_codes=(1060,),
+        )
+        self._execute_safe_schema(
+            "ALTER TABLE system_settings ADD COLUMN night_shift_end_time TIME NULL",
             ignore_error_codes=(1060,),
         )
 
@@ -641,24 +673,25 @@ class DatabaseManager:
 
     def fetch_shift_schedule(self):
         result = self._execute_query(
-            "SELECT shift_start_time, shift_end_time FROM system_settings WHERE id = 1",
+            "SELECT shift_start_time, shift_end_time, night_shift_start_time, night_shift_end_time FROM system_settings WHERE id = 1",
             fetchone=True,
         )
         if not result:
-            return ("08:00:00", "17:00:00")
+            return ("08:00:00", "17:00:00", None, None)
         return result
 
-    def update_shift_schedule(self, shift_start_time: str, shift_end_time: str):
+    def update_shift_schedule(self, shift_start_time: str, shift_end_time: str, night_shift_start_time: str = None, night_shift_end_time: str = None):
         self._execute_query(
-            "INSERT INTO system_settings (id, shift_start_time, shift_end_time) VALUES (1, %s, %s) "
-            "ON DUPLICATE KEY UPDATE shift_start_time = VALUES(shift_start_time), shift_end_time = VALUES(shift_end_time)",
-            (shift_start_time, shift_end_time),
+            "INSERT INTO system_settings (id, shift_start_time, shift_end_time, night_shift_start_time, night_shift_end_time) VALUES (1, %s, %s, %s, %s) "
+            "ON DUPLICATE KEY UPDATE shift_start_time = VALUES(shift_start_time), shift_end_time = VALUES(shift_end_time), "
+            "night_shift_start_time = VALUES(night_shift_start_time), night_shift_end_time = VALUES(night_shift_end_time)",
+            (shift_start_time, shift_end_time, night_shift_start_time, night_shift_end_time),
             commit=True,
         )
 
     def _ensure_default_shift_settings(self):
         self._execute_query(
-            "INSERT IGNORE INTO system_settings (id, shift_start_time, shift_end_time) VALUES (1, '08:00:00', '17:00:00')",
+            "INSERT IGNORE INTO system_settings (id, shift_start_time, shift_end_time, night_shift_start_time, night_shift_end_time) VALUES (1, '08:00:00', '17:00:00', NULL, NULL)",
             commit=True,
         )
 
@@ -814,7 +847,7 @@ class DatabaseManager:
                 user_id,
                 "Late Clock In" if late else "Staff On Site",
                 f"{username} clocked in at {state[4] or 'Not recorded'} (expected {state[2] or 'Not recorded'}). Status: {humanize_status(status or 'ON_TIME')}.",
-                "warning" if late else "info",
+                "warning" if late else "success",
             )
 
     def clock_out_user(self, user_id: int):
@@ -863,7 +896,7 @@ class DatabaseManager:
                 user_id,
                 "Early Time Out" if early else "Staff Time Out",
                 f"{username} timed out at {state[5] or 'Not recorded'} (expected {state[3] or 'Not recorded'}). Status: {humanize_status(status or 'COMPLETED')}.",
-                "warning" if early else "info",
+                "warning" if early else "success",
             )
 
     def fetch_shift_logs(self, user_id: Optional[int] = None):
@@ -1399,7 +1432,7 @@ class DatabaseManager:
             self._raise_error("Failed to create announcement", exc)
 
     def fetch_announcements_for_user(self, user_id: int) -> List[Tuple]:
-        """Get all announcements for a specific user."""
+        """Get all active (non-deleted) announcements for a specific user."""
         query = """
             SELECT
                 a.announcement_id,
@@ -1408,17 +1441,18 @@ class DatabaseManager:
                 a.created_at,
                 u.username AS created_by,
                 ar.is_read,
-                ar.read_at
+                ar.read_at,
+                a.deleted_at
             FROM announcements a
             JOIN users u ON u.user_id = a.created_by_user_id
             JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
-            WHERE ar.user_id = %s AND a.is_active = 1
+            WHERE ar.user_id = %s AND a.is_active = 1 AND a.deleted_at IS NULL
             ORDER BY a.created_at DESC
         """
         return self._execute_query(query, (user_id,), fetchall=True) or []
 
     def fetch_all_announcements(self) -> List[Tuple]:
-        """Get all announcements (admin view)."""
+        """Get all active (non-deleted) announcements (admin view)."""
         query = """
             SELECT
                 a.announcement_id,
@@ -1428,11 +1462,13 @@ class DatabaseManager:
                 u.username AS created_by,
                 a.is_active,
                 COUNT(ar.user_id) AS recipient_count,
-                SUM(ar.is_read) AS read_count
+                SUM(ar.is_read) AS read_count,
+                a.deleted_at
             FROM announcements a
             JOIN users u ON u.user_id = a.created_by_user_id
             LEFT JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
-            GROUP BY a.announcement_id, a.title, a.message, a.created_at, u.username, a.is_active
+            WHERE a.deleted_at IS NULL
+            GROUP BY a.announcement_id, a.title, a.message, a.created_at, u.username, a.is_active, a.deleted_at
             ORDER BY a.created_at DESC
         """
         return self._execute_query(query, fetchall=True) or []
@@ -1446,17 +1482,100 @@ class DatabaseManager:
         )
 
     def delete_announcement(self, announcement_id: int) -> None:
-        """Soft delete announcement by setting is_active to 0."""
+        """Soft delete announcement by setting deleted_at to current timestamp."""
         self._execute_query(
-            "UPDATE announcements SET is_active = 0 WHERE announcement_id = %s",
+            "UPDATE announcements SET deleted_at = NOW() WHERE announcement_id = %s",
             (announcement_id,),
             commit=True,
         )
+
+    def soft_delete_announcement(self, announcement_id: int) -> None:
+        """Soft delete announcement by setting deleted_at to current timestamp."""
+        self._execute_query(
+            "UPDATE announcements SET deleted_at = NOW() WHERE announcement_id = %s",
+            (announcement_id,),
+            commit=True,
+        )
+
+    def restore_announcement(self, announcement_id: int) -> None:
+        """Restore a soft-deleted announcement by setting deleted_at to NULL."""
+        self._execute_query(
+            "UPDATE announcements SET deleted_at = NULL WHERE announcement_id = %s",
+            (announcement_id,),
+            commit=True,
+        )
+
+    def permanently_delete_announcement(self, announcement_id: int) -> None:
+        """Permanently delete an announcement and its associated recipients."""
+        try:
+            self._ensure_connection_alive()
+            with self.conn.cursor() as cursor:
+                cursor.execute("DELETE FROM announcement_recipients WHERE announcement_id = %s", (announcement_id,))
+                cursor.execute("DELETE FROM announcements WHERE announcement_id = %s", (announcement_id,))
+            self.conn.commit()
+        except pymysql.MySQLError as exc:
+            self.conn.rollback()
+            self._raise_error("Failed to permanently delete announcement", exc)
+
+    def fetch_deleted_announcements(self) -> List[Tuple]:
+        """Get all soft-deleted announcements (admin view)."""
+        query = """
+            SELECT
+                a.announcement_id,
+                a.title,
+                a.message,
+                a.created_at,
+                u.username AS created_by,
+                a.is_active,
+                COUNT(ar.user_id) AS recipient_count,
+                SUM(ar.is_read) AS read_count,
+                a.deleted_at
+            FROM announcements a
+            JOIN users u ON u.user_id = a.created_by_user_id
+            LEFT JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
+            WHERE a.deleted_at IS NOT NULL
+            GROUP BY a.announcement_id, a.title, a.message, a.created_at, u.username, a.is_active, a.deleted_at
+            ORDER BY a.deleted_at DESC
+        """
+        return self._execute_query(query, fetchall=True) or []
 
     def fetch_staff_users(self) -> List[Tuple]:
         """Get all staff users (non-admin users)."""
         query = """
             SELECT DISTINCT u.user_id, u.username
+            FROM users u
+            JOIN user_roles ur ON ur.user_id = u.user_id
+            JOIN roles r ON r.role_id = ur.role_id
+            WHERE r.role_name = 'staff' AND u.is_active = 1
+            ORDER BY u.username
+        """
+        return self._execute_query(query, fetchall=True) or []
+
+    def fetch_user_shift_schedule(self, user_id: int):
+        """Get shift schedule for a specific user. Returns (shift_start, shift_end, night_start, night_end) or all None if using global."""
+        result = self._execute_query(
+            "SELECT shift_start_time, shift_end_time, night_shift_start_time, night_shift_end_time FROM users WHERE user_id = %s",
+            (user_id,),
+            fetchone=True,
+        )
+        if not result:
+            return (None, None, None, None)
+        return result
+
+    def update_user_shift_schedule(self, user_id: int, shift_start_time: str = None, shift_end_time: str = None, 
+                                   night_shift_start_time: str = None, night_shift_end_time: str = None):
+        """Update shift schedule for a specific user. Pass None to clear/use global shifts."""
+        self._execute_query(
+            "UPDATE users SET shift_start_time = %s, shift_end_time = %s, night_shift_start_time = %s, night_shift_end_time = %s WHERE user_id = %s",
+            (shift_start_time, shift_end_time, night_shift_start_time, night_shift_end_time, user_id),
+            commit=True,
+        )
+
+    def fetch_all_staff_with_shifts(self) -> List[Tuple]:
+        """Get all staff users with their shift times (for admin view)."""
+        query = """
+            SELECT DISTINCT u.user_id, u.username, u.shift_start_time, u.shift_end_time, 
+                   u.night_shift_start_time, u.night_shift_end_time
             FROM users u
             JOIN user_roles ur ON ur.user_id = u.user_id
             JOIN roles r ON r.role_id = ur.role_id

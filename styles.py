@@ -10,63 +10,63 @@ _BG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images', 'b
 
 TOKENS: Dict[str, Dict[str, str]] = {
     'dark': {
-        # Surfaces — frosted dark navy (high opacity so text is readable)
-        'bg_base': '#0B1929',
-        'bg_surface': 'rgba(8, 20, 38, 0.92)',       # Cards: dark frosted glass
-        'bg_elevated': 'rgba(16, 32, 58, 0.90)',      # Elevated panels
-        'bg_input': 'rgba(6, 16, 32, 0.88)',           # Input fields
-        'bg_sidebar': '#061020',                        # Sidebar: solid dark
+        # Surfaces — enhanced dark navy with better hierarchy
+        'bg_base': '#0A1420',
+        'bg_surface': 'rgba(15, 28, 48, 0.95)',       # Cards: elevated frosted glass
+        'bg_elevated': 'rgba(25, 42, 68, 0.92)',      # Elevated panels: brighter
+        'bg_input': 'rgba(10, 20, 35, 0.90)',         # Input fields: deeper
+        'bg_sidebar': '#050F1A',                       # Sidebar: ultra dark
         'bg_login': _BG_PATH,
 
-        # Brand — Ice Buddha Blue
-        'accent_1': '#5DADE2',
-        'accent_2': '#3498DB',
-        'accent_3': '#85C1E9',
+        # Brand — Enhanced Ice Buddha Blue
+        'accent_1': '#64B8E0',
+        'accent_2': '#3FA9D6',
+        'accent_3': '#8DD3F0',
 
-        # Semantic colors
-        'success': '#2ECC71',
-        'warning': '#F39C12',
-        'danger': '#E74C3C',
+        # Semantic colors — enhanced vibrancy
+        'success': '#3FD26B',
+        'warning': '#FFB342',
+        'danger': '#FF6B5B',
 
-        # Text hierarchy — HIGH CONTRAST on dark frosted cards
-        'text_primary': '#EDF6FC',       # Near-white with blue tint
-        'text_secondary': '#93C5E8',     # Soft sky blue — readable
-        'text_muted': '#5F9CC0',         # Muted steel blue
+        # Text hierarchy — MAXIMUM CONTRAST on dark frosted cards
+        'text_primary': '#F0FAFF',       # Almost pure white with blue tint
+        'text_secondary': '#A8D8F0',     # Brighter sky blue
+        'text_muted': '#6BA8D0',         # Muted medium blue
 
         # Sidebar text
-        'sidebar_text_primary': '#EDF6FC',
-        'sidebar_text_secondary': '#93C5E8',
-        'sidebar_text_muted': '#5499C7',
+        'sidebar_text_primary': '#F0FAFF',
+        'sidebar_text_secondary': '#A8D8F0',
+        'sidebar_text_muted': '#6BA8D0',
 
-        # Borders — visible against frosted dark
-        'border': 'rgba(93, 173, 226, 0.25)',
-        'border_strong': 'rgba(93, 173, 226, 0.40)',
-        'border_accent': 'rgba(93, 173, 226, 0.35)',
+        # Borders — much more visible
+        'border': 'rgba(100, 184, 224, 0.35)',
+        'border_strong': 'rgba(100, 184, 224, 0.50)',
+        'border_accent': 'rgba(100, 184, 224, 0.45)',
 
         # Component
-        'surface_muted': 'rgba(10, 24, 48, 0.85)',
-        'input_border': 'rgba(93, 173, 226, 0.30)',
-        'card_border': 'rgba(93, 173, 226, 0.20)',
+        'surface_muted': 'rgba(15, 28, 48, 0.80)',
+        'input_border': 'rgba(100, 184, 224, 0.40)',
+        'card_border': 'rgba(100, 184, 224, 0.30)',
 
         # Table
-        'table_header_bg': '#2E86C1',
+        'table_header_bg': '#1F5A7F',
         'table_header_text': '#FFFFFF',
-        'table_row_alt': 'rgba(8, 20, 38, 0.50)',
-        'table_row_hover': 'rgba(93, 173, 226, 0.15)',
+        'table_row_alt': 'rgba(25, 42, 68, 0.75)',
+        'table_row_hover': 'rgba(100, 184, 224, 0.25)',
 
         # Navigation
-        'nav_active_bg': '#2E86C1',
-        'nav_hover': 'rgba(93, 173, 226, 0.12)',
+        'nav_active_bg': '#2E7FAD',
+        'nav_hover': 'rgba(100, 184, 224, 0.18)',
 
         # Pills
-        'pill_bg': 'rgba(93, 173, 226, 0.15)',
-        'pill_text': '#5DADE2',
+        'pill_bg': 'rgba(100, 184, 224, 0.20)',
+        'pill_text': '#64B8E0',
 
         # Shadows
-        'shadow_xs': '0 1px 3px rgba(0,0,0,0.20)',
-        'shadow_sm': '0 2px 10px rgba(0,0,0,0.25)',
-        'shadow_md': '0 4px 20px rgba(0,0,0,0.30)',
-        'shadow_lg': '0 8px 30px rgba(0,0,0,0.35)',
+        'shadow_xs': '0 1px 3px rgba(0,0,0,0.35)',
+        'shadow_sm': '0 2px 10px rgba(0,0,0,0.40)',
+        'shadow_md': '0 4px 20px rgba(0,0,0,0.45)',
+        'shadow_lg': '0 8px 30px rgba(0,0,0,0.50)',
 
         # Radius
         'radius_xs': '4', 'radius_sm': '6', 'radius_md': '12',
@@ -118,17 +118,17 @@ TOKENS: Dict[str, Dict[str, str]] = {
         'card_border': 'rgba(46, 134, 193, 0.20)',
 
         # Table
-        'table_header_bg': '#2E86C1',
+        'table_header_bg': '#1A5276',
         'table_header_text': '#FFFFFF',
-        'table_row_alt': 'rgba(235, 245, 251, 0.50)',
-        'table_row_hover': 'rgba(93, 173, 226, 0.12)',
+        'table_row_alt': 'rgba(214, 234, 248, 0.90)',
+        'table_row_hover': 'rgba(46, 134, 193, 0.22)',
 
         # Nav
-        'nav_active_bg': '#2E86C1',
-        'nav_hover': 'rgba(93, 173, 226, 0.12)',
+        'nav_active_bg': '#1A5276',
+        'nav_hover': 'rgba(46, 134, 193, 0.18)',
 
         # Pills
-        'pill_bg': 'rgba(93, 173, 226, 0.15)',
+        'pill_bg': 'rgba(100, 184, 224, 0.20)',
         'pill_text': '#1A5276',
 
         # Shadows

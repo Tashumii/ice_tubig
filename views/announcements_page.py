@@ -3,7 +3,7 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel,
     QListWidget, QListWidgetItem, QMessageBox, QPushButton, QScrollArea,
-    QTextEdit, QVBoxLayout, QWidget, QGraphicsDropShadowEffect
+    QTextEdit, QVBoxLayout, QWidget, QGraphicsDropShadowEffect, QTabWidget
 )
 import qtawesome as qta
 from models.services.announcement_service import AnnouncementService
@@ -29,7 +29,7 @@ class AnnouncementsPage(QWidget):
             QWidget {{ background: transparent; }}
             QFrame[card="true"] {{
                 background: {self.tokens.get('bg_surface', 'rgba(8, 20, 38, 0.92)')};
-                border: 1px solid {self.tokens.get('card_border', 'rgba(93, 173, 226, 0.20)')};
+                border: 1px solid {self.tokens.get('card_border', 'rgba(100, 184, 224, 0.25)')};
                 border-radius: 12px;
                 padding: 0px;
             }}
@@ -52,7 +52,7 @@ class AnnouncementsPage(QWidget):
             }}
             QPushButton {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {self.tokens.get('accent_1', '#5DADE2')}, stop:1 {self.tokens.get('accent_2', '#3498DB')});
+                    stop:0 {self.tokens.get('accent_1', '#64B8E0')}, stop:1 {self.tokens.get('accent_2', '#3FA9D6')});
                 color: white;
                 font-size: 12px;
                 font-weight: 600;
@@ -64,13 +64,13 @@ class AnnouncementsPage(QWidget):
             }}
             QPushButton:hover {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {self.tokens.get('accent_2', '#3498DB')}, stop:1 #2E86C1);
+                    stop:0 {self.tokens.get('accent_2', '#3FA9D6')}, stop:1 #2E7FAD);
                 border: 2px solid rgba(255, 255, 255, 0.4);
-                box-shadow: 0 0 16px rgba(93, 173, 226, 0.5);
+                box-shadow: 0 0 16px rgba(100, 184, 224, 0.6);
             }}
             QPushButton:pressed {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2E86C1, stop:1 #2874A6);
+                    stop:0 #2E7FAD, stop:1 #1E5A7E);
                 border: 2px solid rgba(255, 255, 255, 0.2);
             }}
             QPushButton:focus {{
@@ -93,15 +93,49 @@ class AnnouncementsPage(QWidget):
         header.addWidget(title); header.addStretch()
         if self._user_is_admin:
             create_btn = QPushButton('+ Create Announcement')
-            create_btn.setIcon(qta.icon('fa5s.plus-circle', color=self.tokens.get('accent_1','#5DADE2')))
+            create_btn.setIcon(qta.icon('fa5s.plus-circle', color=self.tokens.get('accent_1','#64B8E0')))
             create_btn.setProperty('primary', True)
             create_btn.clicked.connect(self._show_create_dialog)
             header.addWidget(create_btn)
         layout.addLayout(header)
-        self.list_widget = QListWidget(self)
-        self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
-        self.list_widget.itemClicked.connect(self._on_announcement_clicked)
-        layout.addWidget(self.list_widget)
+        
+        # Create tabs for active and deleted announcements (admin only)
+        if self._user_is_admin:
+            self.tab_widget = QTabWidget()
+            self.tab_widget.setStyleSheet(f"""
+                QTabWidget::pane {{ border: 1px solid {self.tokens.get('card_border', 'rgba(100, 184, 224, 0.25)')}; }}
+                QTabBar::tab {{
+                    background: {self.tokens.get('bg_base', 'rgba(10, 25, 47, 0.6)')};
+                    color: {self.tokens.get('text_primary', '#EDF6FC')};
+                    padding: 8px 20px;
+                    border: 1px solid {self.tokens.get('card_border', 'rgba(100, 184, 224, 0.25)')};
+                    margin-right: 2px;
+                }}
+                QTabBar::tab:selected {{
+                    background: {self.tokens.get('bg_surface', 'rgba(15, 28, 48, 0.95)')};
+                    color: {self.tokens.get('accent_1', '#64B8E0')};
+                    border-bottom: 2px solid {self.tokens.get('accent_1', '#64B8E0')};
+                }}
+            """)
+            
+            # Active announcements tab
+            self.list_widget = QListWidget(self)
+            self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
+            self.list_widget.itemClicked.connect(self._on_announcement_clicked)
+            self.tab_widget.addTab(self.list_widget, "Active")
+            
+            # Deleted announcements tab
+            self.deleted_list_widget = QListWidget(self)
+            self.deleted_list_widget.setFrameShape(QFrame.Shape.NoFrame)
+            self.deleted_list_widget.itemClicked.connect(self._on_deleted_announcement_clicked)
+            self.tab_widget.addTab(self.deleted_list_widget, "Deleted")
+            
+            layout.addWidget(self.tab_widget)
+        else:
+            self.list_widget = QListWidget(self)
+            self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
+            self.list_widget.itemClicked.connect(self._on_announcement_clicked)
+            layout.addWidget(self.list_widget)
 
     def refresh(self):
         self.list_widget.clear()
@@ -116,6 +150,18 @@ class AnnouncementsPage(QWidget):
                 item.setSizeHint(widget.sizeHint())
                 self.list_widget.addItem(item)
                 self.list_widget.setItemWidget(item, widget)
+            
+            # Load deleted announcements if admin
+            if self._user_is_admin:
+                self.deleted_list_widget.clear()
+                deleted_announcements = self.announcement_service.get_deleted_announcements(self.current_user)
+                for ann in deleted_announcements:
+                    item = QListWidgetItem(self.deleted_list_widget)
+                    item.setData(Qt.ItemDataRole.UserRole, f"{ann.title} {ann.message} {ann.created_by} {ann.deleted_at}")
+                    widget = self._create_deleted_announcement_widget(ann)
+                    item.setSizeHint(widget.sizeHint())
+                    self.deleted_list_widget.addItem(item)
+                    self.deleted_list_widget.setItemWidget(item, widget)
         except Exception as exc:
             QMessageBox.warning(self, 'Error', f'Failed to load announcements: {exc}')
 
@@ -160,7 +206,38 @@ class AnnouncementsPage(QWidget):
         ft.setProperty('muted', True); layout.addWidget(ft)
         apply_card_polish(widget); return widget
 
+    def _create_deleted_announcement_widget(self, ann):
+        """Create widget for deleted announcement with restore and permanent delete options."""
+        widget = QFrame(self); widget.setProperty('card', True); self._add_card_shadow(widget)
+        layout = QVBoxLayout(widget); layout.setContentsMargins(16, 12, 16, 12); layout.setSpacing(8)
+        title_row = QHBoxLayout()
+        tl = QLabel(ann.title); tl.setProperty('cardTitle', True)
+        title_row.addWidget(tl); title_row.addStretch()
+        
+        # Restore button
+        restore_btn = QPushButton('Restore'); restore_btn.setProperty('secondary', True)
+        restore_btn.clicked.connect(lambda: self._restore_announcement(ann.announcement_id))
+        title_row.addWidget(restore_btn)
+        
+        # Permanently delete button
+        perm_del_btn = QPushButton('Delete Permanently'); perm_del_btn.setProperty('danger', True)
+        perm_del_btn.clicked.connect(lambda: self._permanently_delete_announcement(ann.announcement_id))
+        title_row.addWidget(perm_del_btn)
+        
+        title_row.addStretch(); layout.addLayout(title_row)
+        msg = QLabel(ann.message); msg.setWordWrap(True); layout.addWidget(msg)
+        stats = QLabel(f"Recipients: {ann.recipient_count} \u2022 Read: {ann.read_count}")
+        stats.setProperty('muted', True); layout.addWidget(stats)
+        ft = QLabel(f"Created by: {ann.created_by} \u2022 Created: {ann.created_at.strftime('%b %d, %Y %I:%M %p')}")
+        ft.setProperty('muted', True); layout.addWidget(ft)
+        deleted_time = ann.deleted_at.strftime('%b %d, %Y %I:%M %p') if ann.deleted_at else 'Unknown'
+        dt = QLabel(f"Deleted: {deleted_time}")
+        dt.setProperty('muted', True); layout.addWidget(dt)
+        apply_card_polish(widget); return widget
+
     def _on_announcement_clicked(self, item): pass
+
+    def _on_deleted_announcement_clicked(self, item): pass
 
     def _mark_as_read(self, announcement_id):
         try:
@@ -177,6 +254,27 @@ class AnnouncementsPage(QWidget):
                 QTimer.singleShot(100, self.refresh)
             except Exception as exc:
                 QMessageBox.warning(self, 'Error', f'Failed to delete announcement: {exc}')
+
+    def _restore_announcement(self, announcement_id):
+        if QMessageBox.question(self, 'Confirm Restore', 'Are you sure you want to restore this announcement?',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
+            try:
+                self.announcement_service.restore_announcement(self.current_user, announcement_id)
+                QMessageBox.information(self, 'Success', 'Announcement restored successfully.')
+                QTimer.singleShot(100, self.refresh)
+            except Exception as exc:
+                QMessageBox.warning(self, 'Error', f'Failed to restore announcement: {exc}')
+
+    def _permanently_delete_announcement(self, announcement_id):
+        if QMessageBox.question(self, 'Confirm Permanent Delete', 
+            'Are you sure you want to permanently delete this announcement? This cannot be undone.',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
+            try:
+                self.announcement_service.permanently_delete_announcement(self.current_user, announcement_id)
+                QMessageBox.information(self, 'Success', 'Announcement permanently deleted.')
+                QTimer.singleShot(100, self.refresh)
+            except Exception as exc:
+                QMessageBox.warning(self, 'Error', f'Failed to permanently delete announcement: {exc}')
 
     def _show_create_dialog(self):
         if CreateAnnouncementDialog(self.announcement_service, self.current_user, self.tokens, self).exec() == QDialog.DialogCode.Accepted:

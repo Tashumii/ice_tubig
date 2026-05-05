@@ -13,9 +13,9 @@ from utils import friendly_error, humanize_status, is_admin, is_staff
 import styles
 
 _STATUS_COLORS = {
-    StockStatus.AVAILABLE: ('#0e3d2e', '#2ECC71'),     # Green — ready
-    StockStatus.NOT_AVAILABLE: ('#0B2545', '#5DADE2'),  # Icy blue — freezing
-    StockStatus.SOLD: ('#3d2a0f', '#F39C12'),           # Warm amber — sold
+    StockStatus.AVAILABLE: ('#0e3d2e', '#3FD26B'),     # Green — ready
+    StockStatus.NOT_AVAILABLE: ('#0A1F38', '#64B8E0'),  # Icy blue — freezing
+    StockStatus.SOLD: ('#3d2a0f', '#FFB342'),           # Warm amber — sold
 }
 
 class StockPage(QWidget):
@@ -29,11 +29,29 @@ class StockPage(QWidget):
         self._build_ui()
 
     def _apply_modern_styling(self):
-        """Apply modern styling to buttons."""
+        """Apply modern styling to buttons and page."""
         self.setStyleSheet(f"""
+            QWidget {{
+                background: {self.tokens.get('bg_base', '#0A1420')};
+                color: {self.tokens.get('text_primary', '#F0FAFF')};
+            }}
+            QFrame {{
+                background: transparent;
+                color: {self.tokens.get('text_primary', '#F0FAFF')};
+            }}
+            QLabel {{
+                color: {self.tokens.get('text_primary', '#F0FAFF')};
+                background: transparent;
+            }}
+            QLabel[pageTitle="true"] {{
+                color: {self.tokens.get('text_primary', '#F0FAFF')};
+                font-size: 28px;
+                font-weight: 700;
+                background: transparent;
+            }}
             QPushButton {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {self.tokens.get('accent_1', '#5DADE2')}, stop:1 {self.tokens.get('accent_2', '#3498DB')});
+                    stop:0 {self.tokens.get('accent_1', '#64B8E0')}, stop:1 {self.tokens.get('accent_2', '#3FA9D6')});
                 color: white;
                 font-size: 12px;
                 font-weight: 600;
@@ -45,13 +63,13 @@ class StockPage(QWidget):
             }}
             QPushButton:hover {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {self.tokens.get('accent_2', '#3498DB')}, stop:1 #2E86C1);
+                    stop:0 {self.tokens.get('accent_2', '#3FA9D6')}, stop:1 #2E7FAD);
                 border: 2px solid rgba(255, 255, 255, 0.4);
-                box-shadow: 0 0 16px rgba(93, 173, 226, 0.5);
+                box-shadow: 0 0 16px rgba(100, 184, 224, 0.5);
             }}
             QPushButton:pressed {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2E86C1, stop:1 #2874A6);
+                    stop:0 #2E7FAD, stop:1 #1E5A7E);
                 border: 2px solid rgba(255, 255, 255, 0.2);
             }}
             QPushButton:focus {{
@@ -76,21 +94,21 @@ class StockPage(QWidget):
         header.addWidget(title); header.addStretch()
         if is_admin(self.current_user):
             btn = QPushButton("Add Stock", self)
-            btn.setIcon(qta.icon('fa5s.plus-circle', color=self.tokens.get('accent_1','#5DADE2')))
+            btn.setIcon(qta.icon('fa5s.plus-circle', color=self.tokens.get('accent_1','#64B8E0')))
             btn.clicked.connect(self._show_add_stock_dialog)
             header.addWidget(btn)
         rb = QPushButton("REFRESH", self)
-        rb.setIcon(qta.icon('fa5s.sync-alt', color=self.tokens.get('accent_1','#5DADE2')))
+        rb.setIcon(qta.icon('fa5s.sync-alt', color=self.tokens.get('accent_1','#64B8E0')))
         rb.clicked.connect(self.refresh); header.addWidget(rb)
         self.sell_button = QPushButton("Record Sale", self)
-        self.sell_button.setIcon(qta.icon('fa5s.cash-register', color=self.tokens.get('success','#10B981')))
+        self.sell_button.setIcon(qta.icon('fa5s.cash-register', color=self.tokens.get('success','#3FD26B')))
         self.sell_button.clicked.connect(self._sell_selected_stock)
         self.sell_button.setEnabled(False)
         if not is_staff(self.current_user):
             self.sell_button.setToolTip("Only staff accounts can record sales.")
         header.addWidget(self.sell_button); root.addLayout(header)
         tc = QFrame(self)
-        tc.setStyleSheet(f"QFrame{{background:transparent;border:1px solid {self.tokens.get('card_border','#2D3E52')};border-radius:8px;}}")
+        tc.setStyleSheet(f"QFrame{{background:{self.tokens.get('bg_surface', 'rgba(15, 28, 48, 0.95)')};border:1px solid {self.tokens.get('card_border','rgba(100, 184, 224, 0.30)')};border-radius:8px;}}")
         tl = QVBoxLayout(tc); tl.setContentsMargins(0,0,0,0); tl.setSpacing(0)
         self.table = QTableWidget(tc)
         self.table.setColumnCount(4)
@@ -108,11 +126,11 @@ class StockPage(QWidget):
         self.table.itemSelectionChanged.connect(self._update_sell_button)
         t = self.tokens
         self.table.setStyleSheet(f"""
-            QTableWidget{{background:transparent;alternate-background-color:transparent;gridline-color:transparent;color:{t.get('text_primary','#EBF5FB')};border:1px solid {t.get('card_border','#1B4F72')};border-radius:10px;font-size:13px;font-weight:400;}}
-            QTableWidget::item{{padding:0 16px;border-bottom:1px solid {t.get('border','#1B4F72')};background:transparent;}}
-            QTableWidget::item:hover{{background:rgba(93,173,226,0.12);color:{t.get('accent_1','#5DADE2')};}}
-            QTableWidget::item:selected{{background:rgba(93,173,226,0.08);border-left:3px solid {t.get('accent_1','#5DADE2')};color:{t.get('accent_1','#5DADE2')};font-weight:600;}}
-            QHeaderView::section{{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {t.get('accent_2','#3498DB')},stop:1 {t.get('accent_1','#5DADE2')});color:#FFFFFF;font-size:11px;font-weight:700;letter-spacing:0.8px;border:none;padding:10px 16px;}}
+            QTableWidget{{background:{t.get('bg_elevated', 'rgba(25, 42, 68, 0.92)')};alternate-background-color:{t.get('table_row_alt', 'rgba(25, 42, 68, 0.75)')};gridline-color:transparent;color:{t.get('text_primary','#F0FAFF')};border:1px solid {t.get('card_border','rgba(100, 184, 224, 0.30)')};border-radius:10px;font-size:13px;font-weight:400;}}
+            QTableWidget::item{{padding:0 16px;border-bottom:1px solid {t.get('border','rgba(100, 184, 224, 0.35)')};background:transparent;}}
+            QTableWidget::item:hover{{background:{t.get('table_row_hover', 'rgba(100,184,224,0.25)')};color:{t.get('accent_1','#64B8E0')};}}  
+            QTableWidget::item:selected{{background:rgba(100,184,224,0.15);border-left:3px solid {t.get('accent_1','#64B8E0')};color:{t.get('accent_1','#64B8E0')};font-weight:600;}}
+            QHeaderView::section{{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {t.get('accent_2','#3FA9D6')},stop:1 {t.get('accent_1','#64B8E0')});color:#FFFFFF;font-size:11px;font-weight:700;letter-spacing:0.8px;border:none;padding:10px 16px;}}
         """)
         tl.addWidget(self.table); root.addWidget(tc, 1)
 

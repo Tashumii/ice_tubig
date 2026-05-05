@@ -63,12 +63,12 @@ class LoginPage(QWidget):
         login_card.setMaximumWidth(460)
         login_card.setMinimumWidth(380)
         login_card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
-        login_card.setStyleSheet("""
-            QFrame#loginCard {
-                background: rgba(240, 245, 250, 0.88);
+        login_card.setStyleSheet(f"""
+            QFrame#loginCard {{
+                background: {self.tokens.get('bg_surface', 'rgba(240, 245, 250, 0.88)')};
                 border-radius: 22px;
-                border: 1px solid rgba(255, 255, 255, 0.6);
-            }
+                border: 1px solid {self.tokens.get('card_border', 'rgba(255, 255, 255, 0.6)')};
+            }}
         """)
 
         # Card shadow
@@ -99,8 +99,8 @@ class LoginPage(QWidget):
         self.error_label = QLabel(self.initial_error, login_card)
         self.error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.error_label.setWordWrap(True)
-        self.error_label.setStyleSheet("""
-            color: #DC2626; font-size: 11px; font-weight: 500;
+        self.error_label.setStyleSheet(f"""
+            color: {self.tokens.get('danger', '#FF6B5B')}; font-size: 11px; font-weight: 500;
             background: transparent; padding: 0 4px;
         """)
         card_layout.addWidget(self.error_label)
@@ -127,7 +127,7 @@ class LoginPage(QWidget):
         login_button.setStyleSheet("""
             QPushButton#loginButton {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #5DADE2, stop:1 #3498DB);
+                    stop:0 #64B8E0, stop:1 #3FA9D6);
                 color: white;
                 font-size: 16px;
                 font-weight: 700;
@@ -139,13 +139,13 @@ class LoginPage(QWidget):
             }
             QPushButton#loginButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #3498DB, stop:1 #2E86C1);
+                    stop:0 #3FA9D6, stop:1 #2E7FAD);
                 border: 2px solid rgba(255, 255, 255, 0.5);
-                box-shadow: 0 0 24px rgba(93, 173, 226, 0.6);
+                box-shadow: 0 0 24px rgba(100, 184, 224, 0.6);
             }
             QPushButton#loginButton:pressed {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2E86C1, stop:1 #2874A6);
+                    stop:0 #2E7FAD, stop:1 #1E5A7E);
                 border: 2px solid rgba(255, 255, 255, 0.3);
             }
             QPushButton#loginButton:focus {
@@ -194,17 +194,17 @@ class LoginPage(QWidget):
         """Create a styled input field with icon, matching the icy design."""
         container = QFrame(parent)
         container.setObjectName("inputContainer")
-        container.setStyleSheet("""
-            QFrame#inputContainer {
-                background: rgba(220, 230, 240, 0.6);
+        container.setStyleSheet(f"""
+            QFrame#inputContainer {{
+                background: {self.tokens.get('bg_input', 'rgba(220, 230, 240, 0.6)')};
                 border-radius: 28px;
-                border: 2px solid rgba(200, 215, 230, 0.8);
-            }
-            QFrame#inputContainer:hover {
-                border: 2px solid rgba(93, 173, 226, 0.8);
-                background: rgba(220, 235, 250, 0.8);
-                box-shadow: 0 0 16px rgba(93, 173, 226, 0.3);
-            }
+                border: 2px solid {self.tokens.get('input_border', 'rgba(200, 215, 230, 0.8)')};
+            }}
+            QFrame#inputContainer:hover {{
+                border: 2px solid {self.tokens.get('accent_1', 'rgba(100, 184, 224, 0.8)')};
+                background: {self.tokens.get('bg_elevated', 'rgba(220, 235, 250, 0.8)')};
+                box-shadow: 0 0 16px {self.tokens.get('accent_1', 'rgba(100, 184, 224, 0.3)')};
+            }}
         """)
         container.setMinimumHeight(52)
 
@@ -242,7 +242,7 @@ class LoginPage(QWidget):
 
         if echo_password:
             toggle_btn = QPushButton(container)
-            toggle_btn.setIcon(qta.icon('fa5s.snowflake', color='#5DADE2'))
+            toggle_btn.setIcon(qta.icon('fa5s.snowflake', color=self.tokens.get('accent_1', '#64B8E0')))
             toggle_btn.setIconSize(QSize(20, 20))
             toggle_btn.setFlat(True)
             toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -254,10 +254,10 @@ class LoginPage(QWidget):
                     border-radius: 4px;
                 }
                 QPushButton:hover {
-                    background: rgba(93, 173, 226, 0.1);
+                    background: rgba(100, 184, 224, 0.15);
                 }
                 QPushButton:pressed {
-                    background: rgba(93, 173, 226, 0.2);
+                    background: rgba(100, 184, 224, 0.25);
                 }
             """)
             toggle_btn.setCheckable(True)

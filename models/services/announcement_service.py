@@ -53,10 +53,30 @@ class AnnouncementService:
         self._db.mark_announcement_as_read(announcement_id, user.user_id)
 
     def delete_announcement(self, actor: User, announcement_id: int) -> None:
+        """Soft delete an announcement (admin only)."""
         self._require_admin(actor, "delete announcements")
         if not isinstance(announcement_id, int) or announcement_id < 1:
             raise ValueError("Invalid announcement ID.")
-        self._db.delete_announcement(announcement_id)
+        self._db.soft_delete_announcement(announcement_id)
+
+    def restore_announcement(self, actor: User, announcement_id: int) -> None:
+        """Restore a soft-deleted announcement (admin only)."""
+        self._require_admin(actor, "restore announcements")
+        if not isinstance(announcement_id, int) or announcement_id < 1:
+            raise ValueError("Invalid announcement ID.")
+        self._db.restore_announcement(announcement_id)
+
+    def permanently_delete_announcement(self, actor: User, announcement_id: int) -> None:
+        """Permanently delete an announcement (admin only)."""
+        self._require_admin(actor, "permanently delete announcements")
+        if not isinstance(announcement_id, int) or announcement_id < 1:
+            raise ValueError("Invalid announcement ID.")
+        self._db.permanently_delete_announcement(announcement_id)
+
+    def get_deleted_announcements(self, actor: User) -> List[AnnouncementSummary]:
+        """Get all soft-deleted announcements (admin only)."""
+        self._require_admin(actor, "view deleted announcements")
+        return [AnnouncementSummary.from_row(row) for row in self._db.fetch_deleted_announcements()]
 
     def get_staff_list(self, actor: User) -> List[dict]:
         self._require_admin(actor, "view staff list")

@@ -33,10 +33,16 @@ class SalesService:
         ]
 
     def get_shift_schedule(self) -> dict:
-        start, end = self._db.fetch_shift_schedule()
+        result = self._db.fetch_shift_schedule()
+        start = result[0] if len(result) > 0 else "08:00:00"
+        end = result[1] if len(result) > 1 else "17:00:00"
+        night_start = result[2] if len(result) > 2 else None
+        night_end = result[3] if len(result) > 3 else None
         return {
             "shift_start_time": str(start)[:5],
             "shift_end_time": str(end)[:5],
+            "night_shift_start_time": str(night_start)[:5] if night_start else None,
+            "night_shift_end_time": str(night_end)[:5] if night_end else None,
         }
 
     def record_clock_in(self, user_id: int) -> None:

@@ -194,8 +194,8 @@ class IceTubigSystem(QWidget):
                 border: 1px solid transparent; font-size: 13px; font-weight: 500;
             }}
             QPushButton:hover {{
-                background: rgba(93, 173, 226, 0.12);
-                border: 1px solid rgba(93, 173, 226, 0.2);
+                background: rgba(100, 184, 224, 0.18);
+                border: 1px solid rgba(100, 184, 224, 0.3);
                 color: #FFFFFF;
             }}
         """

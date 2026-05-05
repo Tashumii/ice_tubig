@@ -179,6 +179,29 @@ def normalize_shift_time(value: str, label: str = "Shift") -> str:
     return text
 
 
+def format_time_12h(time_str: str) -> str:
+    """Convert HH:MM:SS or HH:MM format to 12-hour AM/PM format. Example: '08:00:00' -> '08:00 AM'"""
+    if not time_str:
+        return ""
+    try:
+        time_str = str(time_str).strip()
+        # Handle both HH:MM:SS and HH:MM formats
+        if ":" in time_str:
+            parts = time_str.split(":")
+            hours = int(parts[0])
+            minutes = int(parts[1])
+        else:
+            return time_str
+        
+        period = "AM" if hours < 12 else "PM"
+        display_hours = hours if hours <= 12 else hours - 12
+        if display_hours == 0:
+            display_hours = 12
+        return f"{display_hours:02d}:{minutes:02d} {period}"
+    except Exception:
+        return time_str
+
+
 def validate_float_range(value: str, min_val: float = None, max_val: float = None) -> Optional[float]:
     """Validate and convert string to float within an optional range. Returns None if invalid."""
     try:

@@ -27,7 +27,7 @@ class SalesPage(QWidget):
             QWidget {{ background: transparent; }}
             QFrame[card="true"] {{
                 background: {self.tokens.get('bg_surface', 'rgba(8, 20, 38, 0.92)')};
-                border: 1px solid {self.tokens.get('card_border', 'rgba(93, 173, 226, 0.20)')};
+                border: 1px solid {self.tokens.get('card_border', 'rgba(100, 184, 224, 0.25)')};
                 border-radius: 12px;
                 padding: 0px;
             }}
@@ -44,7 +44,7 @@ class SalesPage(QWidget):
                 background: transparent;
             }}
             QLabel[kpiValue="true"] {{
-                color: {self.tokens.get('accent_1', '#5DADE2')};
+                color: {self.tokens.get('accent_1', '#64B8E0')};
                 font-size: 20px;
                 font-weight: 800;
                 background: transparent;
@@ -61,7 +61,7 @@ class SalesPage(QWidget):
             }}
             QPushButton {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {self.tokens.get('accent_1', '#5DADE2')}, stop:1 {self.tokens.get('accent_2', '#3498DB')});
+                    stop:0 {self.tokens.get('accent_1', '#64B8E0')}, stop:1 {self.tokens.get('accent_2', '#3FA9D6')});
                 color: white;
                 font-size: 12px;
                 font-weight: 600;
@@ -73,13 +73,13 @@ class SalesPage(QWidget):
             }}
             QPushButton:hover {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {self.tokens.get('accent_2', '#3498DB')}, stop:1 #2E86C1);
+                    stop:0 {self.tokens.get('accent_2', '#3FA9D6')}, stop:1 #2E7FAD);
                 border: 2px solid rgba(255, 255, 255, 0.4);
-                box-shadow: 0 0 16px rgba(93, 173, 226, 0.5);
+                box-shadow: 0 0 16px rgba(100, 184, 224, 0.6);
             }}
             QPushButton:pressed {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2E86C1, stop:1 #2874A6);
+                    stop:0 #2E7FAD, stop:1 #1E5A7E);
                 border: 2px solid rgba(255, 255, 255, 0.2);
             }}
             QPushButton:focus {{
