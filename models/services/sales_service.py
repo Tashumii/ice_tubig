@@ -8,19 +8,23 @@ from utils import clean_display_text, humanize_name, humanize_status
 
 class SalesService:
     def __init__(self, database_manager: DatabaseManager):
+        # Initializes object
         self._db = database_manager
 
     def get_sales_history(self) -> List[Sale]:
+        # Gets history
         records = self._db.fetch_sales_history() or []
         return [Sale.from_row(row) for row in records]
 
     def get_sales_history_by_user(self, username: Optional[str] = None) -> List[Sale]:
+        # Gets user
         sales = self.get_sales_history()
         if not username or username.lower() == "all":
             return sales
         return [sale for sale in sales if sale.sold_by_username == username]
 
     def get_employee_shift_summary(self) -> List[dict]:
+        # Gets summary
         rows = self._db.fetch_employee_sales_summary() or []
         return [
             {
@@ -33,6 +37,7 @@ class SalesService:
         ]
 
     def get_shift_schedule(self, user_id: Optional[int] = None) -> dict:
+        # Gets schedule
         if user_id is not None:
             user_schedule = self._db.fetch_user_shift_schedule(user_id)
             if user_schedule and any(user_schedule):
@@ -60,6 +65,7 @@ class SalesService:
         }
 
     def record_clock_in(self, user_id: int) -> None:
+        # Record in
         if not isinstance(user_id, int) or user_id < 1:
             raise ValueError("Invalid user ID")
         self._db.clock_in_user(user_id)
@@ -68,6 +74,7 @@ class SalesService:
     clock_in = record_clock_in
 
     def record_clock_out(self, user_id: int) -> None:
+        # Record out
         if not isinstance(user_id, int) or user_id < 1:
             raise ValueError("Invalid user ID")
         self._db.clock_out_user(user_id)
@@ -76,6 +83,7 @@ class SalesService:
     clock_out = record_clock_out
 
     def get_shift_logs(self, user_id: Optional[int] = None) -> List[dict]:
+        # Gets logs
         rows = self._db.fetch_shift_logs(user_id)
         return [
             {
@@ -92,6 +100,7 @@ class SalesService:
         ]
 
     def get_admin_notifications(self, limit: int = 20, unread_only: bool = False) -> List[dict]:
+        # Gets notifications
         rows = self._db.fetch_admin_notifications(limit, unread_only)
         return [
             {
@@ -108,17 +117,22 @@ class SalesService:
         ]
 
     def get_unread_admin_notification_count(self) -> int:
+        # Gets count
         return self._db.count_unread_admin_notifications()
 
     def mark_admin_notifications_read(self) -> None:
+        # Mark read
         self._db.mark_admin_notifications_read()
 
     def get_revenue_by_month(self, months: int = 12) -> List[Tuple[str, float]]:
+        # Gets month
         return self._db.fetch_revenue_by_month(months) or []
 
     def get_revenue_by_year(self, years: int = 5) -> List[Tuple[int, float]]:
+        # Gets year
         return self._db.fetch_revenue_by_year(years) or []
 
     def get_sales_comparison(self) -> SalesComparisonSummary:
+        # Gets comparison
         raw = self._db.fetch_sales_comparison_summary() or (0.0, 0.0, 0.0, 0.0)
         return SalesComparisonSummary.from_tuple(raw)

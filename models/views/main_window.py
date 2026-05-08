@@ -40,6 +40,7 @@ class IceTubigSystem(QWidget):
         auth_service, report_service=None, announcement_service=None,
         on_logout_callback=None, tokens=None, current_user=None, parent=None,
     ):
+        # Initializes object
         super().__init__(parent)
         self.inventory_service = inventory_service
         self.sales_service = sales_service
@@ -97,6 +98,7 @@ class IceTubigSystem(QWidget):
     # ── Sidebar ───────────────────────────────────────────────────────────
 
     def _build_sidebar(self, root_layout):
+        # Build sidebar
         self.sidebar = QFrame(self)
         self.sidebar.setProperty("shell", True)
         self.sidebar.setObjectName("sidebar")
@@ -165,6 +167,7 @@ class IceTubigSystem(QWidget):
         root_layout.addWidget(self.sidebar, 0)
 
     def _create_nav_button(self, label, page_idx, icon_name):
+        # Creates button
         button = QPushButton(f"  {label}", self.sidebar)
         button.setProperty("nav", True)
         button.setIcon(qta.icon(icon_name, color=self.tokens['sidebar_text_primary']))
@@ -174,6 +177,7 @@ class IceTubigSystem(QWidget):
         return button
 
     def _nav_active_style(self):
+        # Nav style
         return f"""
             QPushButton {{
                 text-align: left; padding: 12px 16px; border-radius: 10px;
@@ -186,6 +190,7 @@ class IceTubigSystem(QWidget):
         """
 
     def _nav_inactive_style(self):
+        # Nav style
         return f"""
             QPushButton {{
                 text-align: left; padding: 12px 16px; border-radius: 10px;
@@ -202,6 +207,7 @@ class IceTubigSystem(QWidget):
     # ── Content area ──────────────────────────────────────────────────────
 
     def _build_content_area(self, root_layout):
+        # Build area
         self.content_frame = QFrame(self)
         self.content_frame.setProperty("shell", True)
         self.content_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -283,6 +289,7 @@ class IceTubigSystem(QWidget):
     # ── Navigation ────────────────────────────────────────────────────────
 
     def switch_page(self, index):
+        # Switch page
         if index < 0 or index >= len(self.page_names):
             return
         self.current_page_index = index
@@ -298,6 +305,7 @@ class IceTubigSystem(QWidget):
             QTimer.singleShot(50, lambda i=index: self._refresh_page(i))
 
     def _refresh_page(self, index):
+        # Refreshes page
         try:
             page = self.pages[index]
             if page is not None and hasattr(page, 'refresh'):
@@ -307,6 +315,7 @@ class IceTubigSystem(QWidget):
             self.page_status_label.setText(f'{self.page_names[index]}: error')
 
     def _on_search_text_changed(self, query):
+        # On changed
         current_page = self.pages[self.current_page_index]
         if current_page is not None and hasattr(current_page, 'search'):
             try:
@@ -319,6 +328,7 @@ class IceTubigSystem(QWidget):
             self._close_search_menu()
 
     def _apply_current_search_to_page(self):
+        # Apply page
         if not hasattr(self, "search_input"):
             return
         query = self.search_input.text()
@@ -327,6 +337,7 @@ class IceTubigSystem(QWidget):
             current_page.search(query)
 
     def _run_global_search(self):
+        # Run search
         query = self.search_input.text().strip()
         if len(query) < 2:
             self._close_search_menu()
@@ -335,11 +346,14 @@ class IceTubigSystem(QWidget):
         self._show_search_results(query, results)
 
     def _collect_global_search_results(self, query):
+        # Collect results
         query_lower = query.lower()
         results = []
         def matches(*values):
+            # Matches data
             return query_lower in " ".join(str(v or "") for v in values).lower()
         def add(page_index, title, detail, icon):
+            # Adds data
             if len(results) < 12:
                 results.append({"page_index": page_index, "title": title, "detail": detail, "icon": icon})
 
@@ -392,6 +406,7 @@ class IceTubigSystem(QWidget):
         return results
 
     def _show_search_results(self, query, results):
+        # Show results
         self._close_search_menu()
         menu = QMenu(self)
         menu.setStyleSheet(f"""
@@ -417,16 +432,19 @@ class IceTubigSystem(QWidget):
         menu.popup(self.search_input.mapToGlobal(self.search_input.rect().bottomLeft()))
 
     def _open_search_result(self, page_index):
+        # Open result
         self._close_search_menu()
         self.switch_page(page_index)
         QTimer.singleShot(150, self._apply_current_search_to_page)
 
     def _close_search_menu(self):
+        # Close menu
         menu = getattr(self, "search_menu", None)
         if menu:
             menu.close(); menu.deleteLater(); self.search_menu = None
 
     def _refresh_notification_bell(self):
+        # Refreshes bell
         if not hasattr(self, "notification_button"):
             return
         try:
@@ -441,6 +459,7 @@ class IceTubigSystem(QWidget):
         except Exception: pass
 
     def _show_notifications(self):
+        # Show notifications
         pass  # Show notifications for everyone
         try:
             notifications = self.sales_service.get_admin_notifications(8)
@@ -471,6 +490,7 @@ class IceTubigSystem(QWidget):
         self._refresh_notification_bell()
 
     def _notification_icon(self, severity):
+        # Notification icon
         m = {"success": ('fa5s.check-circle', self.tokens['success']),
              "warning": ('fa5s.exclamation-triangle', self.tokens['warning']),
              "danger": ('fa5s.times-circle', self.tokens['danger'])}
@@ -478,6 +498,7 @@ class IceTubigSystem(QWidget):
         return qta.icon(name, color=color)
 
     def _get_or_create_page(self, index):
+        # Gets page
         if self.pages[index] is None:
             page = self._create_page_safely(self.page_names[index], self.page_factories[index])
             self.page_stack.addWidget(page)
@@ -486,6 +507,7 @@ class IceTubigSystem(QWidget):
         return self.pages[index]
 
     def _create_page_safely(self, page_name, factory):
+        # Creates safely
         try:
             return factory()
         except Exception as exc:
@@ -497,6 +519,7 @@ class IceTubigSystem(QWidget):
             return fallback
 
     def _update_stock_countdowns(self):
+        # Updates countdowns
         try:
             stock_page = self.pages[1]
             if stock_page and hasattr(stock_page, 'update_countdowns'):
@@ -504,10 +527,12 @@ class IceTubigSystem(QWidget):
         except Exception: pass
 
     def _apply_theme(self, theme):
+        # Apply theme
         self.tokens = apply_app_style(self.window().windowHandle(), theme)
         self.switch_page(self.current_page_index)
 
     def on_logout(self):
+        # On logout
         try:
             if callable(self.on_logout_callback):
                 self.on_logout_callback(); return

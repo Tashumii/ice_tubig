@@ -29,11 +29,13 @@ class BackgroundWidget(QWidget):
     """Widget that paints the icy background image behind all content."""
 
     def __init__(self, bg_path: str, parent=None):
+        # Initializes object
         super().__init__(parent)
         self._bg_pixmap = QPixmap(bg_path)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
 
     def paintEvent(self, event):
+        # Paintevent data
         if not self._bg_pixmap.isNull():
             painter = QPainter(self)
             scaled = self._bg_pixmap.scaled(
@@ -49,6 +51,7 @@ class IceTubigApp(QMainWindow):
     """Main application window with login flow and consistent icy background."""
 
     def __init__(self):
+        # Initializes object
         super().__init__()
 
         self.setWindowTitle("Mr. Ice Buddha — Inventory Management System")
@@ -110,6 +113,7 @@ class IceTubigApp(QMainWindow):
         self.show_login()
 
     def show_login(self):
+        # Show login
         """Show login page."""
         self.current_user = None
         while self.container.count():
@@ -129,11 +133,13 @@ class IceTubigApp(QMainWindow):
         self.last_login_error = ''
 
     def on_login_success(self, user):
+        # On success
         """Handle successful login."""
         self.current_user = user
         self.show_main_window()
 
     def show_main_window(self):
+        # Show window
         """Show main application window."""
         try:
             main_window = IceTubigSystem(
@@ -164,6 +170,7 @@ class IceTubigApp(QMainWindow):
         self.frames['main'] = main_window
 
     def _on_close(self):
+        # On close
         """Close app and release DB resources safely."""
         try:
             if getattr(self, 'database_manager', None):
@@ -173,6 +180,7 @@ class IceTubigApp(QMainWindow):
             logging.error(f"Error closing database connection: {exc}")
 
     def closeEvent(self, event):
+        # Closeevent data
         """Qt close hook: release resources then accept close."""
         try:
             self._on_close()

@@ -12,6 +12,7 @@ class AnimatedPieChart(QWidget):
     """Interactive pie chart with animations and hover tooltips."""
     
     def __init__(self, tokens: dict, parent=None):
+        # Initializes object
         super().__init__(parent)
         self.tokens = tokens
         self.data: List[Tuple[str, float, str]] = []  # (label, value, color)
@@ -28,6 +29,7 @@ class AnimatedPieChart(QWidget):
         self.animation_timer.timeout.connect(self._animate_step)
         
     def set_data(self, data: List[Tuple[str, float, str]]):
+        # Sets data
         """
         Set chart data and trigger animation.
         
@@ -44,6 +46,7 @@ class AnimatedPieChart(QWidget):
         self.animation_timer.start(16)  # ~60 FPS
         
     def _calculate_angles(self):
+        # Calculate angles
         """Calculate start and span angles for each segment."""
         self.segment_angles = []
         current_angle = 90.0  # Start at top
@@ -57,6 +60,7 @@ class AnimatedPieChart(QWidget):
             current_angle += span
     
     def _animate_step(self):
+        # Animate step
         """Animation step for smooth chart rendering."""
         self.animation_progress += 0.05
         if self.animation_progress >= 1.0:
@@ -65,6 +69,7 @@ class AnimatedPieChart(QWidget):
         self.update()
     
     def paintEvent(self, event):
+        # Paintevent data
         """Draw the pie chart with animations."""
         if not self.data or self.total <= 0:
             self._draw_empty_state()
@@ -121,6 +126,7 @@ class AnimatedPieChart(QWidget):
         self._draw_legend(painter)
     
     def _draw_legend(self, painter: QPainter):
+        # Draw legend
         """Draw chart legend."""
         legend_x = 10
         legend_y = self.height() - 20 - (len(self.data) * 25)
@@ -142,6 +148,7 @@ class AnimatedPieChart(QWidget):
             painter.drawText(legend_x + 20, y + 12, text)
     
     def _draw_empty_state(self):
+        # Draw state
         """Draw empty state when no data."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -151,6 +158,7 @@ class AnimatedPieChart(QWidget):
         painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "No data available")
     
     def mouseMoveEvent(self, event):
+        # Mousemoveevent data
         """Handle mouse movement for hover effects."""
         if not self.data or self.total <= 0:
             return
@@ -215,6 +223,7 @@ class AnimatedPieChart(QWidget):
                 QToolTip.hideText()
     
     def leaveEvent(self, event):
+        # Leaveevent data
         """Handle mouse leave."""
         if self.hovered_segment != -1:
             self.hovered_segment = -1

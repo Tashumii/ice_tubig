@@ -20,6 +20,7 @@ class Sale:
 
     @classmethod
     def from_row(cls, row: Tuple[Any, ...]) -> 'Sale':
+        # From row
         return cls(
             sale_id=int(row[0]),
             stock_id=int(row[1]),

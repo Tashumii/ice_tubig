@@ -11,6 +11,7 @@ class LoadingSpinner(QWidget):
     """Animated circular loading spinner."""
     
     def __init__(self, tokens: dict, size: int = 40, parent=None):
+        # Initializes object
         super().__init__(parent)
         self.tokens = tokens
         self.size = size
@@ -22,21 +23,25 @@ class LoadingSpinner(QWidget):
         self.timer.timeout.connect(self._rotate)
         
     def start(self):
+        # Start data
         """Start the spinner animation."""
         self.timer.start(30)  # ~33 FPS
         self.show()
     
     def stop(self):
+        # Stop data
         """Stop the spinner animation."""
         self.timer.stop()
         self.hide()
     
     def _rotate(self):
+        # Rotate data
         """Rotate the spinner."""
         self.angle = (self.angle + 10) % 360
         self.update()
     
     def paintEvent(self, event):
+        # Paintevent data
         """Draw the spinner."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -55,6 +60,7 @@ class PulsingDot(QWidget):
     """Pulsing dot indicator."""
     
     def __init__(self, tokens: dict, size: int = 12, parent=None):
+        # Initializes object
         super().__init__(parent)
         self.tokens = tokens
         self.size = size
@@ -66,16 +72,19 @@ class PulsingDot(QWidget):
         self.timer.timeout.connect(self._pulse)
     
     def start(self):
+        # Start data
         """Start pulsing."""
         self.timer.start(50)
         self.show()
     
     def stop(self):
+        # Stop data
         """Stop pulsing."""
         self.timer.stop()
         self.hide()
     
     def _pulse(self):
+        # Pulse data
         """Pulse animation step."""
         if self.growing:
             self.scale += 0.05
@@ -88,6 +97,7 @@ class PulsingDot(QWidget):
         self.update()
     
     def paintEvent(self, event):
+        # Paintevent data
         """Draw the pulsing dot."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -105,6 +115,7 @@ class ProgressBar(QWidget):
     """Animated progress bar."""
     
     def __init__(self, tokens: dict, parent=None):
+        # Initializes object
         super().__init__(parent)
         self.tokens = tokens
         self.progress = 0.0
@@ -115,12 +126,14 @@ class ProgressBar(QWidget):
         self.timer.timeout.connect(self._animate)
     
     def set_progress(self, value: float):
+        # Sets progress
         """Set progress (0.0 to 1.0)."""
         self.target_progress = max(0.0, min(1.0, value))
         if not self.timer.isActive():
             self.timer.start(16)
     
     def _animate(self):
+        # Animate data
         """Animate progress smoothly."""
         diff = self.target_progress - self.progress
         if abs(diff) < 0.01:
@@ -131,6 +144,7 @@ class ProgressBar(QWidget):
         self.update()
     
     def paintEvent(self, event):
+        # Paintevent data
         """Draw the progress bar."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

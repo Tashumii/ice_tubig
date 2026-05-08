@@ -15,6 +15,7 @@ import styles
 
 class AnnouncementsPage(QWidget):
     def __init__(self, announcement_service, current_user, tokens, parent=None):
+        # Initializes object
         super().__init__(parent)
         self.announcement_service = announcement_service
         self.current_user = current_user
@@ -24,6 +25,7 @@ class AnnouncementsPage(QWidget):
         self._build_ui()
 
     def _apply_modern_styling(self):
+        # Apply styling
         """Apply modern glassmorphic styling to all cards and components."""
         self.setStyleSheet(f"""
             QWidget {{ background: transparent; }}
@@ -79,6 +81,7 @@ class AnnouncementsPage(QWidget):
         """)
 
     def _add_card_shadow(self, widget):
+        # Adds shadow
         """Add drop shadow effect to a card widget."""
         shadow = QGraphicsDropShadowEffect(widget)
         shadow.setBlurRadius(12)
@@ -87,6 +90,7 @@ class AnnouncementsPage(QWidget):
         widget.setGraphicsEffect(shadow)
 
     def _build_ui(self):
+        # Build ui
         layout = QVBoxLayout(self); layout.setContentsMargins(10,10,10,10); layout.setSpacing(10)
         header = QHBoxLayout()
         title = QLabel('Announcements'); title.setProperty('pageTitle', True)
@@ -131,6 +135,7 @@ class AnnouncementsPage(QWidget):
         layout.addWidget(self.tab_widget)
 
     def refresh(self):
+        # Refreshes data
         self.list_widget.clear()
         try:
             announcements = (self.announcement_service.get_all_announcements(self.current_user)
@@ -159,12 +164,14 @@ class AnnouncementsPage(QWidget):
             QMessageBox.warning(self, 'Error', f'Failed to load announcements: {exc}')
 
     def search(self, query):
+        # Search data
         text = (query or "").strip().lower()
         for idx in range(self.list_widget.count()):
             item = self.list_widget.item(idx)
             item.setHidden(bool(text and text not in str(item.data(Qt.ItemDataRole.UserRole) or "").lower()))
 
     def _create_user_announcement_widget(self, ann):
+        # Creates widget
         widget = QFrame(self); widget.setProperty('card', True); self._add_card_shadow(widget)
         layout = QVBoxLayout(widget); layout.setContentsMargins(16, 12, 16, 12); layout.setSpacing(8)
         title_row = QHBoxLayout()
@@ -184,6 +191,7 @@ class AnnouncementsPage(QWidget):
         layout.addLayout(footer); apply_card_polish(widget); return widget
 
     def _create_admin_announcement_widget(self, ann):
+        # Creates widget
         widget = QFrame(self); widget.setProperty('card', True); self._add_card_shadow(widget)
         layout = QVBoxLayout(widget); layout.setContentsMargins(16, 12, 16, 12); layout.setSpacing(8)
         title_row = QHBoxLayout()
@@ -200,6 +208,7 @@ class AnnouncementsPage(QWidget):
         apply_card_polish(widget); return widget
 
     def _create_deleted_announcement_widget(self, ann):
+        # Creates widget
         """Create widget for deleted announcement with restore and permanent delete options."""
         widget = QFrame(self); widget.setProperty('card', True); self._add_card_shadow(widget)
         layout = QVBoxLayout(widget); layout.setContentsMargins(16, 12, 16, 12); layout.setSpacing(8)
@@ -233,6 +242,7 @@ class AnnouncementsPage(QWidget):
     def _on_deleted_announcement_clicked(self, item): pass
 
     def _mark_as_read(self, announcement_id):
+        # On clicked
         try:
             self.announcement_service.mark_as_read(self.current_user, announcement_id)
             QTimer.singleShot(100, self.refresh)
@@ -240,6 +250,7 @@ class AnnouncementsPage(QWidget):
             QMessageBox.warning(self, 'Error', f'Failed to mark as read: {exc}')
 
     def _delete_announcement(self, announcement_id):
+        # Deletes announcement
         if QMessageBox.question(self, 'Confirm Delete', 'Are you sure you want to delete this announcement?',
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
             try:
@@ -249,6 +260,7 @@ class AnnouncementsPage(QWidget):
                 QMessageBox.warning(self, 'Error', f'Failed to delete announcement: {exc}')
 
     def _restore_announcement(self, announcement_id):
+        # Restore announcement
         if QMessageBox.question(self, 'Confirm Restore', 'Are you sure you want to restore this announcement?',
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
             try:
@@ -259,6 +271,7 @@ class AnnouncementsPage(QWidget):
                 QMessageBox.warning(self, 'Error', f'Failed to restore announcement: {exc}')
 
     def _permanently_delete_announcement(self, announcement_id):
+        # Permanently announcement
         if QMessageBox.question(self, 'Confirm Permanent Delete', 
             'Are you sure you want to permanently delete this announcement? This cannot be undone.',
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
@@ -270,12 +283,14 @@ class AnnouncementsPage(QWidget):
                 QMessageBox.warning(self, 'Error', f'Failed to permanently delete announcement: {exc}')
 
     def _show_create_dialog(self):
+        # Show dialog
         if CreateAnnouncementDialog(self.announcement_service, self.current_user, self.tokens, self).exec() == QDialog.DialogCode.Accepted:
             QTimer.singleShot(100, self.refresh)
 
 
 class CreateAnnouncementDialog(QDialog):
     def __init__(self, announcement_service, current_user, tokens, parent=None):
+        # Initializes object
         super().__init__(parent)
         self.announcement_service = announcement_service
         self.current_user = current_user; self.tokens = tokens
@@ -284,6 +299,7 @@ class CreateAnnouncementDialog(QDialog):
         self._build_ui()
 
     def _build_ui(self):
+        # Build ui
         layout = QVBoxLayout(self); layout.setSpacing(10)
         layout.addWidget(QLabel('Title:'))
         self.title_input = QTextEdit(self); self.title_input.setMaximumHeight(60)
@@ -307,6 +323,7 @@ class CreateAnnouncementDialog(QDialog):
         layout.addWidget(bb)
 
     def _load_staff_list(self):
+        # Loads list
         try:
             for staff in self.announcement_service.get_staff_list(self.current_user):
                 item = QListWidgetItem(staff['username'])
@@ -318,9 +335,11 @@ class CreateAnnouncementDialog(QDialog):
             QMessageBox.warning(self, 'Error', f'Failed to load staff list: {exc}')
 
     def _on_recipient_type_changed(self, index):
+        # On changed
         self.staff_list_widget.setVisible(self.recipient_combo.currentData() == 'specific')
 
     def _on_accept(self):
+        # On accept
         title = self.title_input.toPlainText().strip()
         message = self.message_input.toPlainText().strip()
         recipient_type = self.recipient_combo.currentData()

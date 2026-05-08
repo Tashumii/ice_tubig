@@ -15,13 +15,16 @@ from .components.loading_widgets import LoadingSpinner
 class DailyRevenueBarChart(QWidget):
     """Bar chart showing daily revenue over a date range."""
     def __init__(self, tokens, parent=None):
+        # Initializes object
         super().__init__(parent)
         self.tokens = tokens; self.points = []; self.setMinimumHeight(220)
 
     def set_points(self, points):
+        # Sets points
         self.points = points or []; self.update()
 
     def paintEvent(self, event):
+        # Paintevent data
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.fillRect(self.rect(), QColor(self.tokens.get('bg_surface', '#081426')))
@@ -57,6 +60,7 @@ class DailyRevenueBarChart(QWidget):
 
 class DashboardPage(QWidget):
     def __init__(self, inventory_service, sales_service, tokens, current_user=None, *args, **kwargs):
+        # Initializes object
         super().__init__(*args, **kwargs)
         self.inventory_service = inventory_service
         self.sales_service = sales_service
@@ -70,9 +74,11 @@ class DashboardPage(QWidget):
         self.refresh()
 
     def closeEvent(self, event):
+        # Closeevent data
         self.auto_refresh_timer.stop(); super().closeEvent(event)
 
     def _apply_modern_styling(self):
+        # Apply styling
         """Apply modern glassmorphic styling to all cards and components."""
         self.setStyleSheet(f"""
             QWidget {{ background: transparent; }}
@@ -146,6 +152,7 @@ class DashboardPage(QWidget):
         """)
 
     def _add_card_shadow(self, widget):
+        # Adds shadow
         """Add drop shadow effect to a card widget."""
         shadow = QGraphicsDropShadowEffect(widget)
         shadow.setBlurRadius(12)
@@ -154,6 +161,7 @@ class DashboardPage(QWidget):
         widget.setGraphicsEffect(shadow)
 
     def _build_ui(self):
+        # Build ui
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         scroll = QScrollArea(self); scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setWidgetResizable(True)
@@ -253,6 +261,7 @@ class DashboardPage(QWidget):
         tw.setStretch(0, 2); tw.setStretch(1, 1); root.addLayout(tw, 1)
 
     def _metric_item(self, parent_grid, title, row, col, accent=None):
+        # Metric item
         frame = QFrame(self); frame.setProperty("card", True); frame.setProperty("panel", True); self._add_card_shadow(frame)
         layout = QVBoxLayout(frame); layout.setContentsMargins(16, 12, 16, 12); layout.setSpacing(6)
         val = QLabel("—", frame); val.setProperty('kpiValue', True)
@@ -263,6 +272,7 @@ class DashboardPage(QWidget):
         parent_grid.addWidget(frame, row, col); return frame
 
     def refresh(self):
+        # Refreshes data
         self.inventory_service.refresh_stock_availability()
         summary = self.inventory_service.get_dashboard_summary()
         self.available_label.value_label.setText(str(summary.available_count))
@@ -285,16 +295,19 @@ class DashboardPage(QWidget):
         self._refresh_notifications()
 
     def _format_breakdown(self, monthly, yearly):
+        # Format breakdown
         ml = '\n'.join(f'  {p}   {format_currency(t)}' for p, t in monthly) or '  No monthly data'
         yl = '\n'.join(f'  {y}   {format_currency(t)}' for y, t in yearly) or '  No yearly data'
         return f'Monthly\n{ml}\n\nYearly\n{yl}'
 
     def _draw_chart(self, sales, days=30):
+        # Draw chart
         points = self._aggregate_daily_sales(sales, days)
         self.chart_total_label.setText(format_currency(sum(v for _, v in points)))
         self.chart_canvas.set_points(points)
 
     def _refresh_data_tables(self, sales):
+        # Refreshes tables
         self.recent_sales_table.insert_rows([{
             "sale_id": f"#{s.sale_id}", "seller": humanize_name(s.sold_by_username),
             "product": s.product_name, "shift": humanize_name(s.shift_name, "No shift"),
@@ -307,6 +320,7 @@ class DashboardPage(QWidget):
         } for st in self.inventory_service.get_active_stocks()[:10]])
 
     def _refresh_notifications(self):
+        # Refreshes notifications
         notifications = self.sales_service.get_admin_notifications(10)
         rows = [{"_iid": str(i["notification_id"]), "time": i["created_at"],
                  "event": clean_display_text(i["title"]), "staff": humanize_name(i["username"], "System"),
@@ -316,11 +330,13 @@ class DashboardPage(QWidget):
         self.notifications_count.setText(f"{len(rows)} recent notification{'s' if len(rows) != 1 else ''}")
 
     def search(self, query):
+        # Search data
         self.recent_sales_table.filter_rows(query)
         self.stock_snapshot_table.filter_rows(query)
         self.notifications_table.filter_rows(query)
 
     def _aggregate_daily_sales(self, sales, days=30):
+        # Aggregate sales
         from datetime import datetime, timedelta
         now = datetime.now(); totals = {}
         for offset in range(max(int(days),1)-1, -1, -1):
@@ -330,6 +346,7 @@ class DashboardPage(QWidget):
         return list(totals.items())
 
     def _refresh_pie_charts(self, summary, sales_history):
+        # Refreshes charts
         self.stock_pie_chart.set_data([
             ('Ready to Sell', summary.available_count, self.tokens.get('success', '#3FD26B')),
             ('Freezing', summary.freezing_count, self.tokens.get('accent_1', '#64B8E0')),

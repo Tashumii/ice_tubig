@@ -12,6 +12,7 @@ class DatabaseError(Exception):
 
 class DatabaseManager:
     def __init__(self):
+        # Initializes object
         try:
             self.conn = pymysql.connect(
                 host=os.getenv("DB_HOST", "localhost"),
@@ -31,6 +32,7 @@ class DatabaseManager:
         self._ensure_schema()
 
     def close(self):
+        # Close data
         if getattr(self, "conn", None):
             try:
                 self.conn.close()
@@ -38,14 +40,17 @@ class DatabaseManager:
                 self.conn = None
 
     def __del__(self):
+        # Del data
         self.close()
 
     def _raise_error(self, message, exc=None):
+        # Raise error
         if exc is None:
             raise DatabaseError(message)
         raise DatabaseError(f"{message}: {exc}") from exc
 
     def _ensure_connection_alive(self):
+        # Ensure alive
         if getattr(self, "conn", None) is None:
             self._raise_error("Database connection is closed")
         try:
@@ -54,6 +59,7 @@ class DatabaseManager:
             self._raise_error("Database connection unavailable", exc)
 
     def _execute_query(self, sql, params=None, commit=False, fetchone=False, fetchall=False):
+        # Execute query
         try:
             self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
@@ -69,6 +75,7 @@ class DatabaseManager:
             self._raise_error("Database execution error", exc)
 
     def _execute_safe_schema(self, sql, params=None, ignore_error_codes=None):
+        # Execute schema
         try:
             self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
@@ -79,6 +86,7 @@ class DatabaseManager:
             raise
 
     def _call_procedure(self, procedure_name, args=None, fetchone=False, fetchall=False):
+        # Call procedure
         try:
             self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
@@ -93,10 +101,12 @@ class DatabaseManager:
 
     @staticmethod
     def _hash_password(password: str) -> str:
+        # Hash password
         """Hash password using SHA256."""
         return hashlib.sha256(password.encode()).hexdigest()
 
     def _ensure_schema(self):
+        # Ensure schema
         schema_statements = [
             """
             CREATE TABLE IF NOT EXISTS roles (
@@ -577,6 +587,7 @@ class DatabaseManager:
         self.conn.commit()
 
     def fetch_active_stocks(self):
+        # Fetchs stocks
         return self._execute_query(
             "SELECT stock_id, time_added, product_name, kg, freeze_duration_hours, status, price "
             "FROM ice_stocks WHERE status != 'SOLD' ORDER BY time_added DESC",
@@ -584,6 +595,7 @@ class DatabaseManager:
         )
 
     def fetch_sales_history(self):
+        # Fetchs history
         query = """
         SELECT s.sale_id, s.stock_id, DATE_FORMAT(i.time_added, '%%b %%d, %%Y %%h:%%i %%p'),
                DATE_FORMAT(s.sale_time, '%%b %%d, %%Y %%h:%%i %%p'),
@@ -605,6 +617,7 @@ class DatabaseManager:
         return self._execute_query(query, fetchall=True)
 
     def fetch_employee_sales_summary(self):
+        # Fetchs summary
         query = """
             SELECT
                 COALESCE(u.username, 'Unassigned') AS username,
@@ -623,6 +636,7 @@ class DatabaseManager:
         return self._execute_query(query, fetchall=True) or []
 
     def fetch_sales_comparison_summary(self):
+        # Fetchs summary
         result = self._execute_query(
             "SELECT "
             "COALESCE((SELECT SUM(price) FROM ice_sales WHERE YEAR(sale_time) = YEAR(CURRENT_DATE()) AND MONTH(sale_time) = MONTH(CURRENT_DATE())), 0), "
@@ -635,6 +649,7 @@ class DatabaseManager:
         return result or (0, 0, 0, 0)
 
     def fetch_revenue_by_month(self, months=12):
+        # Fetchs month
         return self._execute_query(
             "SELECT DATE_FORMAT(sale_time, '%%Y-%%m'), COALESCE(SUM(price), 0) "
             "FROM ice_sales "
@@ -646,6 +661,7 @@ class DatabaseManager:
         ) or []
 
     def fetch_revenue_by_year(self, years=5):
+        # Fetchs year
         return self._execute_query(
             "SELECT YEAR(sale_time), COALESCE(SUM(price), 0) "
             "FROM ice_sales "
@@ -657,6 +673,7 @@ class DatabaseManager:
         ) or []
 
     def fetch_theme_setting(self):
+        # Fetchs setting
         try:
             result = self._execute_query("SELECT theme FROM system_settings WHERE id = 1", fetchone=True)
             return result[0] if (result and result[0]) else "light"
@@ -664,6 +681,7 @@ class DatabaseManager:
             return "light"
 
     def update_theme_setting(self, theme):
+        # Updates setting
         self._execute_query(
             "INSERT INTO system_settings (id, theme) VALUES (1, %s) "
             "ON DUPLICATE KEY UPDATE theme = VALUES(theme)",
@@ -672,6 +690,7 @@ class DatabaseManager:
         )
 
     def fetch_shift_schedule(self):
+        # Fetchs schedule
         result = self._execute_query(
             "SELECT shift_start_time, shift_end_time, night_shift_start_time, night_shift_end_time FROM system_settings WHERE id = 1",
             fetchone=True,
@@ -681,6 +700,7 @@ class DatabaseManager:
         return result
 
     def update_shift_schedule(self, shift_start_time: str, shift_end_time: str, night_shift_start_time: str = None, night_shift_end_time: str = None):
+        # Updates schedule
         self._execute_query(
             "INSERT INTO system_settings (id, shift_start_time, shift_end_time, night_shift_start_time, night_shift_end_time) VALUES (1, %s, %s, %s, %s) "
             "ON DUPLICATE KEY UPDATE shift_start_time = VALUES(shift_start_time), shift_end_time = VALUES(shift_end_time), "
@@ -690,12 +710,14 @@ class DatabaseManager:
         )
 
     def _ensure_default_shift_settings(self):
+        # Ensure settings
         self._execute_query(
             "INSERT IGNORE INTO system_settings (id, shift_start_time, shift_end_time, night_shift_start_time, night_shift_end_time) VALUES (1, '08:00:00', '17:00:00', NULL, NULL)",
             commit=True,
         )
 
     def _fetch_username(self, user_id: int) -> str:
+        # Fetchs username
         row = self._execute_query(
             "SELECT username FROM users WHERE user_id = %s",
             (user_id,),
@@ -730,6 +752,7 @@ class DatabaseManager:
         message: str,
         severity: str = "info",
     ):
+        # Creates notification
         try:
             self._execute_query(
                 """
@@ -749,6 +772,7 @@ class DatabaseManager:
             pass
 
     def fetch_admin_notifications(self, limit: int = 20, unread_only: bool = False):
+        # Fetchs notifications
         try:
             clean_limit = max(1, min(int(limit or 20), 100))
         except (TypeError, ValueError):
@@ -775,6 +799,7 @@ class DatabaseManager:
         return self._execute_query(query, tuple(params), fetchall=True) or []
 
     def count_unread_admin_notifications(self) -> int:
+        # Count notifications
         result = self._execute_query(
             "SELECT COUNT(*) FROM admin_notifications WHERE is_read = 0",
             fetchone=True,
@@ -782,12 +807,14 @@ class DatabaseManager:
         return int(result[0] or 0) if result else 0
 
     def mark_admin_notifications_read(self) -> None:
+        # Mark read
         self._execute_query(
             "UPDATE admin_notifications SET is_read = 1 WHERE is_read = 0",
             commit=True,
         )
 
     def clock_in_user(self, user_id: int):
+        # Clock user
         self._ensure_default_shift_settings()
         username = self._fetch_username(user_id)
         existing = self._fetch_today_shift_state(user_id)
@@ -853,6 +880,7 @@ class DatabaseManager:
             )
 
     def clock_out_user(self, user_id: int):
+        # Clock user
         self._ensure_default_shift_settings()
         username = self._fetch_username(user_id)
         existing = self._fetch_today_shift_state(user_id)
@@ -923,6 +951,7 @@ class DatabaseManager:
         return self._execute_query(query, params if params else None, fetchall=True) or []
 
     def fetch_available_product_types(self):
+        # Fetchs types
         query = """
         SELECT MIN(s.stock_id), s.kg, s.freeze_duration_hours, s.price
         FROM ice_stocks s
@@ -932,10 +961,12 @@ class DatabaseManager:
         return self._execute_query(query, fetchall=True)
 
     def fetch_activity_event_count(self):
+        # Fetchs count
         result = self._execute_query("SELECT COUNT(*) FROM ice_activity_log", fetchone=True)
         return int(result[0]) if result else 0
 
     def refresh_stock_availability(self):
+        # Refreshes availability
         if self.procedure_mode:
             try:
                 self._call_procedure("sp_refresh_ice_availability")
@@ -954,6 +985,7 @@ class DatabaseManager:
         )
 
     def fetch_dashboard_summary(self):
+        # Fetchs summary
         if self.procedure_mode:
             try:
                 result = self._call_procedure("sp_get_dashboard_summary", fetchone=True)
@@ -974,6 +1006,7 @@ class DatabaseManager:
         return result or (0, 0, 0, 0)
 
     def add_ice_stock_via_procedure(self, quantity=1, product_name='Ice', weight_kg=25.0, freeze_duration_hours=3, price=35.00, instant=False):
+        # Adds procedure
         if quantity < 1:
             raise DatabaseError("Quantity must be at least 1")
         if not isinstance(product_name, str) or not product_name.strip():
@@ -1013,6 +1046,7 @@ class DatabaseManager:
             self._raise_error("Failed to add ice stock", exc)
 
     def sell_stock_via_procedure(self, stock_id, sold_by_user_id=None):
+        # Sell procedure
         if not isinstance(stock_id, int) or stock_id < 1:
             raise DatabaseError("Invalid stock identifier")
         if sold_by_user_id is not None and (not isinstance(sold_by_user_id, int) or sold_by_user_id < 1):
@@ -1121,6 +1155,7 @@ class DatabaseManager:
 
     
     def authenticate_user(self, username: str, password: str) -> Optional[Tuple]:
+        # Authenticate user
         """Authenticate user and return full user row (user_id, username, password_hash, created_at) or None."""
         try:
             self._ensure_connection_alive()
@@ -1142,6 +1177,7 @@ class DatabaseManager:
             self._raise_error("Authentication failed", exc)
 
     def get_user_by_username(self, username: str) -> Optional[Tuple]:
+        # Gets username
         """Get user by username. Returns full user row (user_id, username, password_hash, created_at) or None."""
         try:
             self._ensure_connection_alive()
@@ -1159,6 +1195,7 @@ class DatabaseManager:
             self._raise_error("Failed to get user", exc)
 
     def get_user_roles(self, user_id: int) -> List[str]:
+        # Gets roles
         """Get roles for a user."""
         try:
             self._ensure_connection_alive()
@@ -1172,6 +1209,7 @@ class DatabaseManager:
             self._raise_error("Failed to get user roles", exc)
 
     def fetch_users_with_roles(self) -> List[Tuple]:
+        # Fetchs roles
         """Get all users with aggregated role names and active flag."""
         query = """
             SELECT
@@ -1189,6 +1227,7 @@ class DatabaseManager:
         return self._execute_query(query, fetchall=True) or []
 
     def create_user_with_role(self, username: str, password: str, role_name: str) -> int:
+        # Creates role
         """Create a user and assign a role. Returns new user_id."""
         normalized_role = (role_name or "").strip().lower()
         if normalized_role not in ("admin", "staff"):
@@ -1224,6 +1263,7 @@ class DatabaseManager:
             self._raise_error("Failed to create user account", exc)
 
     def set_user_active(self, user_id: int, is_active: bool) -> None:
+        # Sets active
         try:
             self._execute_query(
                 "UPDATE users SET is_active = %s WHERE user_id = %s",
@@ -1234,6 +1274,7 @@ class DatabaseManager:
             self._raise_error("Failed to update user status", exc)
 
     def update_user_password(self, user_id: int, new_password: str) -> None:
+        # Updates password
         try:
             password_hash = self._hash_password(new_password)
             self._execute_query(
@@ -1246,6 +1287,7 @@ class DatabaseManager:
 
     #REPORTING METHODS
     def fetch_revenue_summary(self) -> Dict[str, float]:
+        # Fetchs summary
         """Get revenue summary: total, this_month, this_year."""
         try:
             self._ensure_connection_alive()
@@ -1275,6 +1317,7 @@ class DatabaseManager:
             self._raise_error("Failed to fetch revenue summary", exc)
 
     def fetch_stock_status_breakdown(self) -> Dict[str, int]:
+        # Fetchs breakdown
         """Get count of stocks by status."""
         try:
             self._ensure_connection_alive()
@@ -1299,6 +1342,7 @@ class DatabaseManager:
             self._raise_error("Failed to fetch stock status breakdown", exc)
 
     def fetch_top_products(self, limit: int = 10) -> List[Dict]:
+        # Fetchs products
         """Get top selling products."""
         try:
             self._ensure_connection_alive()
@@ -1322,6 +1366,7 @@ class DatabaseManager:
             self._raise_error("Failed to fetch top products", exc)
 
     def fetch_sales_by_date_range(self, start_date: str = None, end_date: str = None, limit: int = 30) -> List[Dict]:
+        # Fetchs range
         """Get daily sales summary."""
         try:
             self._ensure_connection_alive()
@@ -1362,6 +1407,7 @@ class DatabaseManager:
 
     # ==================== SEARCH/FILTER METHODS ====================
     def search_stocks_by_product(self, product_name: str) -> List[Tuple]:
+        # Search product
         """Search stocks by product name."""
         if not product_name or not isinstance(product_name, str):
             return []
@@ -1377,6 +1423,7 @@ class DatabaseManager:
             self._raise_error("Failed to search stocks", exc)
 
     def filter_sales_by_price_range(self, min_price: float, max_price: float) -> List[Tuple]:
+        # Filter range
         """Filter sales within price range."""
         if not isinstance(min_price, (int, float)) or not isinstance(max_price, (int, float)):
             raise DatabaseError("Price range must be numeric")
@@ -1396,6 +1443,7 @@ class DatabaseManager:
             self._raise_error("Failed to filter sales by price", exc)
 
     def filter_sales_by_date(self, start_date: str, end_date: str) -> List[Tuple]:
+        # Filter date
         """Filter sales within date range."""
         if not start_date or not end_date:
             raise DatabaseError("Start and end dates are required")
@@ -1412,6 +1460,7 @@ class DatabaseManager:
 
     # ==================== ANNOUNCEMENT METHODS ====================
     def create_announcement(self, title: str, message: str, created_by_user_id: int, recipient_user_ids: List[int]) -> int:
+        # Creates announcement
         """Create announcement and assign recipients. Returns announcement_id."""
         try:
             self._ensure_connection_alive()
@@ -1434,6 +1483,7 @@ class DatabaseManager:
             self._raise_error("Failed to create announcement", exc)
 
     def fetch_announcements_for_user(self, user_id: int) -> List[Tuple]:
+        # Fetchs user
         """Get all active (non-deleted) announcements for a specific user."""
         query = """
             SELECT
@@ -1454,6 +1504,7 @@ class DatabaseManager:
         return self._execute_query(query, (user_id,), fetchall=True) or []
 
     def fetch_all_announcements(self) -> List[Tuple]:
+        # Fetchs announcements
         """Get all active (non-deleted) announcements (admin view)."""
         query = """
             SELECT
@@ -1476,6 +1527,7 @@ class DatabaseManager:
         return self._execute_query(query, fetchall=True) or []
 
     def mark_announcement_as_read(self, announcement_id: int, user_id: int) -> None:
+        # Mark read
         """Mark announcement as read for a user."""
         self._execute_query(
             "UPDATE announcement_recipients SET is_read = 1, read_at = NOW() WHERE announcement_id = %s AND user_id = %s",
@@ -1484,6 +1536,7 @@ class DatabaseManager:
         )
 
     def delete_announcement(self, announcement_id: int) -> None:
+        # Deletes announcement
         """Soft delete announcement by setting deleted_at to current timestamp."""
         self._execute_query(
             "UPDATE announcements SET deleted_at = NOW() WHERE announcement_id = %s",
@@ -1492,6 +1545,7 @@ class DatabaseManager:
         )
 
     def soft_delete_announcement(self, announcement_id: int) -> None:
+        # Soft announcement
         """Soft delete announcement by setting deleted_at to current timestamp."""
         self._execute_query(
             "UPDATE announcements SET deleted_at = NOW() WHERE announcement_id = %s",
@@ -1500,6 +1554,7 @@ class DatabaseManager:
         )
 
     def restore_announcement(self, announcement_id: int) -> None:
+        # Restore announcement
         """Restore a soft-deleted announcement by setting deleted_at to NULL."""
         self._execute_query(
             "UPDATE announcements SET deleted_at = NULL WHERE announcement_id = %s",
@@ -1508,6 +1563,7 @@ class DatabaseManager:
         )
 
     def permanently_delete_announcement(self, announcement_id: int) -> None:
+        # Permanently announcement
         """Permanently delete an announcement and its associated recipients."""
         try:
             self._ensure_connection_alive()
@@ -1520,6 +1576,7 @@ class DatabaseManager:
             self._raise_error("Failed to permanently delete announcement", exc)
 
     def fetch_deleted_announcements(self) -> List[Tuple]:
+        # Fetchs announcements
         """Get all soft-deleted announcements (admin view)."""
         query = """
             SELECT
@@ -1542,6 +1599,7 @@ class DatabaseManager:
         return self._execute_query(query, fetchall=True) or []
 
     def fetch_staff_users(self) -> List[Tuple]:
+        # Fetchs users
         """Get all staff users (non-admin users)."""
         query = """
             SELECT DISTINCT u.user_id, u.username
@@ -1554,6 +1612,7 @@ class DatabaseManager:
         return self._execute_query(query, fetchall=True) or []
 
     def fetch_user_shift_schedule(self, user_id: int):
+        # Fetchs schedule
         """Get shift schedule for a specific user. Returns (shift_start, shift_end, night_start, night_end) or all None if using global."""
         result = self._execute_query(
             "SELECT shift_start_time, shift_end_time, night_shift_start_time, night_shift_end_time FROM users WHERE user_id = %s",
@@ -1566,6 +1625,7 @@ class DatabaseManager:
 
     def update_user_shift_schedule(self, user_id: int, shift_start_time: str = None, shift_end_time: str = None, 
                                    night_shift_start_time: str = None, night_shift_end_time: str = None):
+        # Updates schedule
         """Update shift schedule for a specific user. Pass None to clear/use global shifts."""
         self._execute_query(
             "UPDATE users SET shift_start_time = %s, shift_end_time = %s, night_shift_start_time = %s, night_shift_end_time = %s WHERE user_id = %s",
@@ -1574,6 +1634,7 @@ class DatabaseManager:
         )
 
     def fetch_all_staff_with_shifts(self) -> List[Tuple]:
+        # Fetchs shifts
         """Get all staff users with their shift times (for admin view)."""
         query = """
             SELECT DISTINCT u.user_id, u.username, u.shift_start_time, u.shift_end_time, 
@@ -1588,16 +1649,19 @@ class DatabaseManager:
 
 
     def fetch_stock_availability_details(self) -> List[Tuple]:
+        # Fetchs details
         """Get stock availability with minutes until available (uses vw_stock_availability)."""
         query = "SELECT * FROM vw_stock_availability ORDER BY minutes_until_available ASC"
         return self._execute_query(query, fetchall=True) or []
 
     def fetch_sales_with_stock_details(self) -> List[Tuple]:
+        # Fetchs details
         """Get sales data with stock and seller info (uses vw_sales_with_stock)."""
         query = "SELECT * FROM vw_sales_with_stock ORDER BY sale_time DESC"
         return self._execute_query(query, fetchall=True) or []
 
     def fetch_daily_sales_summary(self, days: int = 30) -> List[Tuple]:
+        # Fetchs summary
         """Get daily sales summary for reporting (uses vw_daily_sales_summary)."""
         query = """
             SELECT * FROM vw_daily_sales_summary
@@ -1607,11 +1671,13 @@ class DatabaseManager:
         return self._execute_query(query, (days,), fetchall=True) or []
 
     def fetch_available_products_inventory(self) -> List[Tuple]:
+        # Fetchs inventory
         """Get inventory of available products (uses vw_available_products)."""
         query = "SELECT * FROM vw_available_products ORDER BY available_count DESC, product_name ASC"
         return self._execute_query(query, fetchall=True) or []
 
     def fetch_activity_log_summary_by_type(self) -> List[Tuple]:
+        # Fetchs type
         """Get activity log summary grouped by event type (uses vw_activity_log_summary)."""
         query = "SELECT * FROM vw_activity_log_summary ORDER BY events_count DESC"
         return self._execute_query(query, fetchall=True) or []

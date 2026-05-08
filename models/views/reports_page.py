@@ -11,6 +11,7 @@ from utils import format_currency
 
 class ReportsPage(QWidget):
     def __init__(self, report_service, tokens, *args, **kwargs):
+        # Initializes object
         super().__init__(*args, **kwargs)
         self.report_service = report_service
         self.tokens = tokens
@@ -21,6 +22,7 @@ class ReportsPage(QWidget):
         self._build_ui()
 
     def _apply_modern_styling(self):
+        # Apply styling
         """Apply modern glassmorphic styling to all cards and components."""
         self.setStyleSheet(f"""
             QWidget {{ background: transparent; }}
@@ -95,6 +97,7 @@ class ReportsPage(QWidget):
         """)
 
     def _add_card_shadow(self, widget):
+        # Adds shadow
         """Add drop shadow effect to a card widget."""
         shadow = QGraphicsDropShadowEffect(widget)
         shadow.setBlurRadius(12)
@@ -103,6 +106,7 @@ class ReportsPage(QWidget):
         widget.setGraphicsEffect(shadow)
 
     def _build_ui(self):
+        # Build ui
         root = QVBoxLayout(self)
         header = QHBoxLayout(); left = QVBoxLayout()
         title = QLabel('Reports', self); title.setProperty('pageTitle', True)
@@ -126,6 +130,7 @@ class ReportsPage(QWidget):
         self._build_top_products_table(body)
 
     def _build_revenue_card(self, parent):
+        # Build card
         card = self._section_card(parent, 'Revenue Summary', 'ALL TIME')
         card.layout().setSpacing(8)
         self.total_label = self._metric_card(card, 'Total Revenue', '\u20b1 0.00', accent=True)
@@ -133,6 +138,7 @@ class ReportsPage(QWidget):
         self.this_year_label = self._metric_card(card, 'This Year', '\u20b1 0.00')
 
     def _build_stock_status_card(self, parent):
+        # Build card
         card = self._section_card(parent, 'Stock Status', 'CURRENT')
         card.layout().setSpacing(8)
         self.available_stock_label = self._metric_card(card, 'Ready to Sell', '0', accent_color=self.tokens['success'])
@@ -141,6 +147,7 @@ class ReportsPage(QWidget):
         self.total_stock_label = self._metric_card(card, 'Total', '0')
 
     def _build_sales_trend_table(self, parent):
+        # Build table
         card = self._section_card(parent, 'Sales Trend', 'LAST 30 DAYS')
         self._trend_row_label = QLabel('', card); card.layout().addWidget(self._trend_row_label)
         self.sales_table = ModernTable(card, columns=('date','quantity','amount'), tokens=self.tokens)
@@ -148,6 +155,7 @@ class ReportsPage(QWidget):
         self._set_table_height(self.sales_table, 6)
 
     def _build_top_products_table(self, parent):
+        # Build table
         card = self._section_card(parent, 'Top Products', 'BY REVENUE')
         self._products_row_label = QLabel('', card); card.layout().addWidget(self._products_row_label)
         self.products_table = ModernTable(card, columns=('product','sales','revenue'), tokens=self.tokens)
@@ -155,6 +163,7 @@ class ReportsPage(QWidget):
         self._set_table_height(self.products_table, 6)
 
     def _section_card(self, parent, title, section_label=''):
+        # Section card
         card = QFrame(parent); card.setProperty("card", True); self._add_card_shadow(card)
         v = QVBoxLayout(card); v.setContentsMargins(20, 16, 20, 16); h = QHBoxLayout()
         tl = QLabel(title, card); tl.setProperty('cardTitle', True)
@@ -166,6 +175,7 @@ class ReportsPage(QWidget):
         return card
 
     def _metric_card(self, parent, label, value, accent=False, accent_color=None):
+        # Metric card
         frame = QFrame(parent); frame.setProperty("panel", True)
         v = QVBoxLayout(frame)
         lbl = QLabel(label, frame); lbl.setProperty('kpiLabel', True); v.addWidget(lbl)
@@ -178,6 +188,7 @@ class ReportsPage(QWidget):
         return val
 
     def _set_table_height(self, table, row_count):
+        # Sets height
         rows = max(row_count, 1)
         target = table.header_height + (rows * table.row_height) + table.table.frameWidth()*2 + 6
         table.table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -185,6 +196,7 @@ class ReportsPage(QWidget):
         table.table.setMinimumHeight(target); table.setMinimumHeight(target)
 
     def refresh(self):
+        # Refreshes data
         now = datetime.now()
         if (now - self.last_refresh_time).total_seconds() < self.refresh_cooldown_seconds: return
         self.last_refresh_time = now; errors = []
@@ -232,4 +244,5 @@ class ReportsPage(QWidget):
         self.status_label.setText(f"Could not load: {', '.join(errors)}" if errors else '')
 
     def search(self, query):
+        # Search data
         self.sales_table.filter_rows(query); self.products_table.filter_rows(query)

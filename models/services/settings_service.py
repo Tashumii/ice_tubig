@@ -5,19 +5,23 @@ from typing import Optional, List
 
 class SettingsService:
     def __init__(self, database_manager: DatabaseManager):
+        # Initializes object
         self._db = database_manager
 
     def get_theme(self) -> str:
+        # Gets theme
         theme = self._db.fetch_theme_setting()
         return theme if theme in {'light', 'dark'} else 'light'
 
     def set_theme(self, theme: str) -> None:
+        # Sets theme
         theme_value = theme.lower().strip()
         if theme_value not in {'light', 'dark'}:
             raise DatabaseError('Invalid theme selection')
         self._db.update_theme_setting(theme_value)
 
     def get_shift_schedule(self) -> dict:
+        # Gets schedule
         result = self._db.fetch_shift_schedule()
         start = result[0] if len(result) > 0 else "08:00:00"
         end = result[1] if len(result) > 1 else "17:00:00"
@@ -31,6 +35,7 @@ class SettingsService:
         }
 
     def set_shift_schedule(self, shift_start_time: str, shift_end_time: str, night_shift_start_time: str = None, night_shift_end_time: str = None) -> None:
+        # Sets schedule
         start = normalize_shift_time(shift_start_time, "Shift start")
         end = normalize_shift_time(shift_end_time, "Shift end")
         if start == end:
@@ -52,6 +57,7 @@ class SettingsService:
         self._db.update_shift_schedule(start, end, night_start, night_end)
 
     def get_staff_shift_schedule(self, user_id: int) -> dict:
+        # Gets schedule
         """Get shift schedule for a specific staff member. Returns global schedule if not customized."""
         result = self._db.fetch_user_shift_schedule(user_id)
         start = result[0] if len(result) > 0 else None
@@ -68,6 +74,7 @@ class SettingsService:
 
     def set_staff_shift_schedule(self, user_id: int, shift_start_time: Optional[str] = None, shift_end_time: Optional[str] = None, 
                                  night_shift_start_time: Optional[str] = None, night_shift_end_time: Optional[str] = None) -> None:
+        # Sets schedule
         """Set custom shift schedule for a specific staff member. Pass empty strings to clear and use global shifts."""
         # Validate if times are provided
         if shift_start_time or shift_end_time or night_shift_start_time or night_shift_end_time:
@@ -96,6 +103,7 @@ class SettingsService:
             self._db.update_user_shift_schedule(user_id, None, None, None, None)
 
     def get_all_staff_with_shifts(self) -> List[dict]:
+        # Gets shifts
         """Get all staff members with their shift schedules."""
         rows = self._db.fetch_all_staff_with_shifts() or []
         result = []

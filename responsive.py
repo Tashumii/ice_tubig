@@ -25,6 +25,7 @@ class ResponsiveHelper:
 
     @staticmethod
     def _lookup(device_type, mapping, default=None):
+        # Lookup data
         """Internal helper: resolve device_type and look up a value."""
         if device_type is None:
             device_type = ResponsiveHelper.get_device_type()
@@ -32,12 +33,14 @@ class ResponsiveHelper:
 
     @staticmethod
     def get_screen_size() -> QSize:
+        # Gets size
         """Get primary screen size."""
         screen = QApplication.primaryScreen()
         return screen.size() if screen else QSize(1920, 1080)
 
     @staticmethod
     def get_device_type(width: int = None) -> str:
+        # Gets type
         """Determine device type based on screen width."""
         if width is None:
             width = ResponsiveHelper.get_screen_size().width()
@@ -53,6 +56,7 @@ class ResponsiveHelper:
 
     @staticmethod
     def get_responsive_size(base_size: int, device_type: str = None) -> int:
+        # Gets size
         """Scale size based on device type."""
         factor = ResponsiveHelper._lookup(device_type, {
             ResponsiveHelper.MOBILE: 0.7, ResponsiveHelper.TABLET: 0.85,
@@ -63,6 +67,7 @@ class ResponsiveHelper:
 
     @staticmethod
     def get_responsive_font_size(base_size: int, device_type: str = None) -> int:
+        # Gets size
         """Scale font size based on device type."""
         factor = ResponsiveHelper._lookup(device_type, {
             ResponsiveHelper.MOBILE: 0.8, ResponsiveHelper.TABLET: 0.9,
@@ -73,6 +78,7 @@ class ResponsiveHelper:
 
     @staticmethod
     def get_column_count(device_type: str = None) -> int:
+        # Gets count
         """Get number of columns for grid layout."""
         return ResponsiveHelper._lookup(device_type, {
             ResponsiveHelper.MOBILE: 1, ResponsiveHelper.TABLET: 2,
@@ -82,12 +88,14 @@ class ResponsiveHelper:
 
     @staticmethod
     def should_show_sidebar(device_type: str = None) -> bool:
+        # Should sidebar
         """Determine if sidebar should be shown."""
         dt = device_type if device_type is not None else ResponsiveHelper.get_device_type()
         return dt != ResponsiveHelper.MOBILE
 
     @staticmethod
     def get_window_size(device_type: str = None) -> Tuple[int, int]:
+        # Gets size
         """Get recommended window size."""
         return ResponsiveHelper._lookup(device_type, {
             ResponsiveHelper.MOBILE: (360, 640), ResponsiveHelper.TABLET: (768, 1024),
@@ -97,6 +105,7 @@ class ResponsiveHelper:
 
     @staticmethod
     def get_spacing(device_type: str = None) -> int:
+        # Gets spacing
         """Get spacing for layouts."""
         return ResponsiveHelper._lookup(device_type, {
             ResponsiveHelper.MOBILE: 8, ResponsiveHelper.TABLET: 10,
@@ -106,6 +115,7 @@ class ResponsiveHelper:
 
     @staticmethod
     def get_margins(device_type: str = None) -> Tuple[int, int, int, int]:
+        # Gets margins
         """Get margins for layouts (left, top, right, bottom)."""
         return ResponsiveHelper._lookup(device_type, {
             ResponsiveHelper.MOBILE: (8, 8, 8, 8), ResponsiveHelper.TABLET: (10, 10, 10, 10),
@@ -118,10 +128,12 @@ class ResponsiveWidget(QWidget):
     """Base widget with responsive capabilities."""
 
     def __init__(self, parent=None):
+        # Initializes object
         super().__init__(parent)
         self.device_type = ResponsiveHelper.get_device_type()
 
     def resizeEvent(self, event):
+        # Resizeevent data
         """Handle resize events."""
         super().resizeEvent(event)
         new_device_type = ResponsiveHelper.get_device_type(self.width())
@@ -130,17 +142,22 @@ class ResponsiveWidget(QWidget):
             self._on_device_type_changed()
 
     def _on_device_type_changed(self):
+        # On changed
         """Called when device type changes. Override in subclasses."""
         pass
 
     def get_responsive_size(self, base_size: int) -> int:
+        # Gets size
         return ResponsiveHelper.get_responsive_size(base_size, self.device_type)
 
     def get_responsive_font_size(self, base_size: int) -> int:
+        # Gets size
         return ResponsiveHelper.get_responsive_font_size(base_size, self.device_type)
 
     def get_column_count(self) -> int:
+        # Gets count
         return ResponsiveHelper.get_column_count(self.device_type)
 
     def should_show_sidebar(self) -> bool:
+        # Should sidebar
         return ResponsiveHelper.should_show_sidebar(self.device_type)

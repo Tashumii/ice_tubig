@@ -24,6 +24,7 @@ class Stock:
 
     @classmethod
     def from_row(cls, row: Tuple[Any, ...]) -> 'Stock':
+        # From row
         return cls(
             stock_id=int(row[0]),
             time_added=parse_flexible_datetime(row[1]),

@@ -20,6 +20,7 @@ COLUMN_LABELS = {
 class ModernTable(QWidget):
     def __init__(self, master, columns, tokens, column_widths=None,
                  row_height=40, header_height=44, *args, **kwargs):
+        # Initializes object
         super().__init__(master, *args, **kwargs)
         self.tokens = tokens
         self.columns = list(columns)
@@ -70,6 +71,7 @@ class ModernTable(QWidget):
         layout.addWidget(self.table)
 
     def _apply_style(self):
+        # Apply style
         t = self.tokens
         self.table.setStyleSheet(f"""
             QTableWidget {{
@@ -120,10 +122,12 @@ class ModernTable(QWidget):
         """)
 
     def clear(self):
+        # Clear data
         self._data = []; self._iid_map.clear(); self._selected_iid = None
         self.table.setRowCount(0)
 
     def insert_rows(self, rows):
+        # Insert rows
         self._data = []; self._iid_map = {}
         for row in rows:
             iid = str(row.get("_iid", self._iid_counter))
@@ -149,9 +153,11 @@ class ModernTable(QWidget):
         self._restore_selection()
 
     def append_row(self, row):
+        # Append row
         self.insert_rows(list(self._data) + [row])
 
     def insert(self, parent, index, iid=None, values=None):
+        # Insert data
         row = {}; values = values or ()
         for idx, col in enumerate(self.columns):
             row[col] = values[idx] if idx < len(values) else ""
@@ -160,22 +166,28 @@ class ModernTable(QWidget):
         self.append_row(row); return row["_iid"]
 
     def get_children(self):
+        # Gets children
         return [r.get("_iid") for r in self._data]
 
     def delete(self, *items):
+        # Deletes data
         remove = {str(i) for i in items}
         self.insert_rows([r for r in self._data if str(r.get("_iid")) not in remove])
 
     def selection(self):
+        # Selection data
         return [self._selected_iid] if self._selected_iid else []
 
     def selection_set(self, iid):
+        # Selection set
         self._selected_iid = str(iid); self._restore_selection()
 
     def exists(self, iid):
+        # Exists data
         return str(iid) in self._iid_map
 
     def set(self, iid, column, value):
+        # Sets data
         iid = str(iid)
         if iid not in self._iid_map: return False
         self._iid_map[iid][column] = value
@@ -190,6 +202,7 @@ class ModernTable(QWidget):
         return False
 
     def filter_rows(self, query):
+        # Filter rows
         text = (query or "").strip().lower()
         for r_idx in range(self.table.rowCount()):
             if not text:
@@ -198,10 +211,12 @@ class ModernTable(QWidget):
             self.table.setRowHidden(r_idx, text not in " ".join(values).lower())
 
     def _sync_selection(self):
+        # Sync selection
         selected = self.table.selectedItems()
         self._selected_iid = str(selected[0].data(Qt.ItemDataRole.UserRole)) if selected else None
 
     def _restore_selection(self):
+        # Restore selection
         if not self._selected_iid: return
         for r_idx in range(self.table.rowCount()):
             item = self.table.item(r_idx, 0)
@@ -209,6 +224,7 @@ class ModernTable(QWidget):
                 self.table.selectRow(r_idx); break
 
     def _on_item_hover(self, item):
+        # On hover
         if item:
             col = item.column()
             column_name = self.columns[col] if col < len(self.columns) else ""

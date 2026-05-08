@@ -31,6 +31,7 @@ EMPTY_LABELS = {"", "N/A", "NONE", "NULL", "UNASSIGNED"}
 
 
 def sanitize_string(value: str, max_length: int = 255) -> str:
+    # Sanitize string
     """
     Sanitize string input by removing potentially dangerous characters.
     
@@ -54,6 +55,7 @@ def sanitize_string(value: str, max_length: int = 255) -> str:
 
 
 def humanize_status(value) -> str:
+    # Humanize status
     """Turn database/status constants into words people can read quickly."""
     if value is None:
         return "Not recorded"
@@ -71,6 +73,7 @@ def humanize_status(value) -> str:
 
 
 def humanize_name(value, fallback: str = "Not assigned") -> str:
+    # Humanize name
     text = str(value or "").strip()
     if text.upper() in EMPTY_LABELS:
         return fallback
@@ -78,6 +81,7 @@ def humanize_name(value, fallback: str = "Not assigned") -> str:
 
 
 def clean_display_text(value) -> str:
+    # Clean text
     """Clean technical constants inside longer user-facing messages."""
     text = str(value or "").strip()
     if not text:
@@ -92,6 +96,7 @@ def clean_display_text(value) -> str:
 
 
 def friendly_error(value) -> str:
+    # Friendly error
     """Remove internal exception wrappers from messages shown in dialogs."""
     text = clean_display_text(value)
     _WRAPPER_PREFIXES = (
@@ -112,6 +117,7 @@ def friendly_error(value) -> str:
 
 
 def format_currency(amount: float) -> str:
+    # Format currency
     """Format a numeric amount as Philippine peso currency string."""
     try:
         return f'₱ {float(amount):,.2f}'
@@ -120,6 +126,7 @@ def format_currency(amount: float) -> str:
 
 
 def parse_flexible_datetime(value, extra_formats: tuple = ()) -> datetime:
+    # Parse datetime
     """Parse a datetime from various string formats, returning now() as fallback."""
     if isinstance(value, datetime):
         return value
@@ -143,22 +150,26 @@ def parse_flexible_datetime(value, extra_formats: tuple = ()) -> datetime:
 
 
 def has_role(user, role_name: str) -> bool:
+    # Has role
     """Check if a user object has the specified role."""
     roles = getattr(user, "roles", []) or []
     return role_name in roles
 
 
 def is_admin(user) -> bool:
+    # Is admin
     """Check if user has admin role."""
     return has_role(user, "admin")
 
 
 def is_staff(user) -> bool:
+    # Is staff
     """Check if user has staff role."""
     return has_role(user, "staff")
 
 
 def normalize_shift_time(value: str, label: str = "Shift") -> str:
+    # Normalize time
     """Validate and normalize a shift time string to HH:MM:SS format."""
     text = (value or "").strip()
     if not text:
@@ -180,6 +191,7 @@ def normalize_shift_time(value: str, label: str = "Shift") -> str:
 
 
 def format_time_12h(time_str: str) -> str:
+    # Format 12h
     """Convert HH:MM:SS or HH:MM format to 12-hour AM/PM format. Example: '08:00:00' -> '08:00 AM'"""
     if not time_str:
         return ""
@@ -203,6 +215,7 @@ def format_time_12h(time_str: str) -> str:
 
 
 def validate_float_range(value: str, min_val: float = None, max_val: float = None) -> Optional[float]:
+    # Validate range
     """Validate and convert string to float within an optional range. Returns None if invalid."""
     try:
         num = float(value)
@@ -216,6 +229,7 @@ def validate_float_range(value: str, min_val: float = None, max_val: float = Non
 
 
 def validate_int_range(value: str, min_val: int = None, max_val: int = None) -> Optional[int]:
+    # Validate range
     """Validate and convert string to int within an optional range. Returns None if invalid."""
     try:
         num = int(value)
@@ -229,6 +243,7 @@ def validate_int_range(value: str, min_val: int = None, max_val: int = None) -> 
 
 
 def validate_username(username: str) -> tuple[bool, str]:
+    # Validate username
     """
     Validate username format.
     
@@ -255,6 +270,7 @@ def validate_username(username: str) -> tuple[bool, str]:
 
 
 def validate_password(password: str) -> tuple[bool, str]:
+    # Validate password
     """
     Validate password strength.
     
@@ -277,6 +293,7 @@ def validate_password(password: str) -> tuple[bool, str]:
 
 
 def escape_html(text: str) -> str:
+    # Escape html
     """
     Escape HTML special characters to prevent XSS.
     

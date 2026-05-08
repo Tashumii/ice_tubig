@@ -10,6 +10,7 @@ class DashboardSummary:
 
     @classmethod
     def from_tuple(cls, row: Tuple[int, int, int, int]) -> 'DashboardSummary':
+        # From tuple
         return cls(
             available_count=int(row[0] or 0),
             freezing_count=int(row[1] or 0),
@@ -26,6 +27,7 @@ class SalesComparisonSummary:
 
     @classmethod
     def from_tuple(cls, row: Tuple[float, float, float, float]) -> 'SalesComparisonSummary':
+        # From tuple
         return cls(
             current_month=float(row[0] or 0.0),
             previous_month=float(row[1] or 0.0),

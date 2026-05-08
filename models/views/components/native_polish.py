@@ -18,6 +18,7 @@ class ElevationController(QObject):
         alpha: int = 28,
         duration_ms: int = 180,
     ):
+        # Initializes object
         super().__init__(widget)
         self.widget = widget
         self.rest_blur = rest_blur
@@ -44,6 +45,7 @@ class ElevationController(QObject):
         widget.installEventFilter(self)
 
     def _animate(self, blur_target: float, y_target: float):
+        # Animate data
         self.blur_anim.stop()
         self.offset_anim.stop()
         self.blur_anim.setStartValue(self.effect.blurRadius())
@@ -54,6 +56,7 @@ class ElevationController(QObject):
         self.offset_anim.start()
 
     def eventFilter(self, watched, event):
+        # Eventfilter data
         if watched is self.widget:
             etype = event.type()
             if etype in (event.Type.Enter, event.Type.HoverEnter):
@@ -64,6 +67,7 @@ class ElevationController(QObject):
 
 
 def apply_card_polish(root: QWidget):
+    # Apply polish
     """Apply subtle elevation to structural surfaces."""
     targets = [root] + root.findChildren(QFrame)
     root._elevation_refs = getattr(root, "_elevation_refs", [])
@@ -82,12 +86,14 @@ class ButtonPressAnimation(QObject):
     """Add press animation to buttons."""
     
     def __init__(self, button):
+        # Initializes object
         super().__init__(button)
         self.button = button
         self.original_style = button.styleSheet()
         button.installEventFilter(self)
     
     def eventFilter(self, watched, event):
+        # Eventfilter data
         if watched is self.button:
             if event.type() == event.Type.MouseButtonPress:
                 self.button.setStyleSheet(self.original_style + " QPushButton { transform: scale(0.95); }")
@@ -100,11 +106,13 @@ class FadeStackedWidget(QStackedWidget):
     """QStackedWidget with smooth fade and slide transition."""
 
     def __init__(self, *args, **kwargs):
+        # Initializes object
         super().__init__(*args, **kwargs)
         self._anim_refs = []
         self._previous_index = 0
 
     def switch_to(self, widget: QWidget, duration_ms: int = 300):
+        # Switch to
         """Switch to widget with fade and slide animation."""
         if widget is None or widget is self.currentWidget():
             return
@@ -134,6 +142,7 @@ class FadeStackedWidget(QStackedWidget):
         fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
 
         def _cleanup():
+            # Cleanup data
             widget.setGraphicsEffect(None)
             if fade_anim in self._anim_refs:
                 self._anim_refs.remove(fade_anim)

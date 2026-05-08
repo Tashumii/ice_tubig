@@ -15,6 +15,7 @@ class User:
 
     @classmethod
     def from_row(cls, row: Any, roles: Optional[List[str]] = None) -> Optional['User']:
+        # From row
         """Create a User from a DB row (tuple/list or dict). Returns None if row is falsy."""
         if not row:
             return None

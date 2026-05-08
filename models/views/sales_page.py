@@ -10,6 +10,7 @@ from .components.modern_table import ModernTable
 
 class SalesPage(QWidget):
     def __init__(self, sales_service, tokens, current_user=None, *args, **kwargs):
+        # Initializes object
         super().__init__(*args, **kwargs)
         self.sales_service = sales_service
         self.tokens = tokens
@@ -23,6 +24,7 @@ class SalesPage(QWidget):
         self.refresh()
 
     def _apply_modern_styling(self):
+        # Apply styling
         """Apply modern glassmorphic styling to all cards and components."""
         self.setStyleSheet(f"""
             QWidget {{ background: transparent; }}
@@ -83,6 +85,7 @@ class SalesPage(QWidget):
         """)
 
     def _add_card_shadow(self, widget):
+        # Adds shadow
         """Add drop shadow effect to a card widget."""
         shadow = QGraphicsDropShadowEffect(widget)
         shadow.setBlurRadius(12)
@@ -91,6 +94,7 @@ class SalesPage(QWidget):
         widget.setGraphicsEffect(shadow)
 
     def _build_ui(self):
+        # Build ui
         root = QVBoxLayout(self)
         # Header
         header = QHBoxLayout(); left = QVBoxLayout()
@@ -182,6 +186,7 @@ class SalesPage(QWidget):
         root.addWidget(self.attendance_frame, 1)
 
     def _metric_card(self, parent_grid, title, value, col, accent=False):
+        # Metric card
         frame = QFrame(self); frame.setProperty("panel", True)
         layout = QVBoxLayout(frame)
         val_label = QLabel(value, frame); val_label.setProperty('kpiValue', True)
@@ -193,6 +198,7 @@ class SalesPage(QWidget):
         return val_label
 
     def refresh(self):
+        # Refreshes data
         user_id = getattr(self.current_user, 'user_id', None)
         schedule = self.sales_service.get_shift_schedule(user_id if is_staff(self.current_user) else None)
         self.shift_schedule_label.setText(f"Time In {schedule['shift_start_time']} \u00b7 Time Out {schedule['shift_end_time']}")
@@ -213,6 +219,7 @@ class SalesPage(QWidget):
         self.employee_filter.blockSignals(False)
 
     def _apply_sales_filter(self):
+        # Apply filter
         selected = self.employee_filter.currentText() if self.employee_filter.count() else "All"
         filtered = self._cached_sales if selected == "All" else [s for s in self._cached_sales if s.sold_by_username == selected]
         filtered = self._filter_sales_by_query(filtered)
@@ -240,9 +247,11 @@ class SalesPage(QWidget):
             if kg_revenue else 'No sales recorded yet.')
 
     def _filter_sales_by_query(self, sales):
+        # Filter query
         q = self._active_search_query.strip().lower()
         if not q: return sales
         def matches(s):
+            # Matches data
             vals = (str(s.sale_id), f"#{s.sale_id}", str(s.stock_id), f"#{s.stock_id}",
                 s.product_name, f"{s.price:.2f}", f"{s.kg:g}", f"{s.kg:g} kg",
                 humanize_name(s.sold_by_username), humanize_name(s.shift_name, "No shift"),
@@ -251,6 +260,7 @@ class SalesPage(QWidget):
         return [s for s in sales if matches(s)]
 
     def search(self, query):
+        # Search data
         self._active_search_query = query or ""
         self._apply_sales_filter()
 
@@ -263,6 +273,7 @@ class SalesPage(QWidget):
         self.shift_count_label.setText(f"{len(rows)} shift record{'s' if len(rows) != 1 else ''}")
 
     def _refresh_attendance_table(self):
+        # Refreshes table
         user_id = None  # Show all attendance records to match admin design
         logs = self.sales_service.get_shift_logs(user_id); self._shift_logs = logs
         rows = [{"_iid": str(l["log_id"]), "employee": l["username"], "date": l["shift_date"],
@@ -276,6 +287,7 @@ class SalesPage(QWidget):
         self.shift_status_label.setText(f"Today: {today_row['status']}" if today_row else "Today: Not On Site")
 
     def _clock_in(self):
+        # Clock in
         user_id = getattr(self.current_user, "user_id", None)
         if user_id is None:
             QMessageBox.warning(self, "Account Error", "Unable to identify your account."); return
@@ -286,6 +298,7 @@ class SalesPage(QWidget):
             QMessageBox.critical(self, "Shift Error", friendly_error(exc))
 
     def _clock_out(self):
+        # Clock out
         user_id = getattr(self.current_user, "user_id", None)
         if user_id is None:
             QMessageBox.warning(self, "Account Error", "Unable to identify your account."); return

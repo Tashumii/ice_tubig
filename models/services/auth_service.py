@@ -7,9 +7,11 @@ from utils import validate_username, validate_password
 
 class AuthService:
     def __init__(self, database_manager: DatabaseManager):
+        # Initializes object
         self._db = database_manager
 
     def authenticate(self, username: str, password: str) -> Optional[User]:
+        # Authenticate data
         """Authenticate user and return User object if valid, None otherwise."""
         clean_username = (username or "").strip()
         if not clean_username or len(clean_username) < 3 or len(clean_username) > 50:
@@ -27,10 +29,12 @@ class AuthService:
         return User.from_row(user_row, roles)
 
     def has_role(self, user: User, role_name: str) -> bool:
+        # Has role
         """Check if user has specified role."""
         return role_name in user.roles
 
     def create_user_account(self, actor: User, username: str, password: str, account_type: str) -> int:
+        # Creates account
         """Create account as admin-only action.
 
         account_type supports: 'admin', 'employee' (mapped to 'staff'), 'staff'
@@ -52,12 +56,19 @@ class AuthService:
         if role_name not in ("admin", "staff"):
             raise ValueError("Account type must be Admin or Employee.")
 
+        # Prevent redundant user accounts with case-insensitive check
+        existing_users = self._db.fetch_users_with_roles()
+        for row in existing_users:
+            if str(row[1]).strip().lower() == clean_username.lower():
+                raise ValueError(f"Username '{clean_username}' is already taken. Please choose a different one.")
+
         return self._db.create_user_with_role(clean_username, password, role_name)
 
     # Keep old name as alias for backward compatibility
     create_account = create_user_account
 
     def list_user_accounts(self, actor: User) -> List[dict]:
+        # List accounts
         if not actor or not self.has_role(actor, "admin"):
             raise PermissionError("Only admin can view accounts.")
         rows = self._db.fetch_users_with_roles()
@@ -76,6 +87,7 @@ class AuthService:
     list_accounts = list_user_accounts
 
     def set_account_active(self, actor: User, target_user_id: int, is_active: bool) -> None:
+        # Sets active
         if not actor or not self.has_role(actor, "admin"):
             raise PermissionError("Only admin can update account status.")
         if actor.user_id == target_user_id and not is_active:
@@ -83,6 +95,7 @@ class AuthService:
         self._db.set_user_active(target_user_id, is_active)
 
     def reset_account_password(self, actor: User, target_user_id: int, new_password: str) -> None:
+        # Reset password
         if not actor or not self.has_role(actor, "admin"):
             raise PermissionError("Only admin can reset account passwords.")
         is_valid, error = validate_password(new_password)

@@ -11,6 +11,7 @@ from utils import is_admin, validate_username, validate_password, normalize_shif
 
 class SettingsPage(QWidget):
     def __init__(self, settings_service, auth_service, current_user, on_save, tokens, *args, **kwargs):
+        # Initializes object
         super().__init__(*args, **kwargs)
         self.settings_service = settings_service
         self.auth_service = auth_service
@@ -26,6 +27,7 @@ class SettingsPage(QWidget):
             self._load_staff_dropdown()
 
     def _apply_modern_styling(self):
+        # Apply styling
         """Apply modern glassmorphic styling to all cards and components."""
         self.setStyleSheet(f"""
             QWidget {{ background: transparent; }}
@@ -103,6 +105,7 @@ class SettingsPage(QWidget):
         """)
 
     def _add_card_shadow(self, widget):
+        # Adds shadow
         """Add drop shadow effect to a card widget."""
         shadow = QGraphicsDropShadowEffect(widget)
         shadow.setBlurRadius(12)
@@ -111,6 +114,7 @@ class SettingsPage(QWidget):
         widget.setGraphicsEffect(shadow)
 
     def _build_ui(self):
+        # Build ui
         root = QVBoxLayout(self)
         title = QLabel('Settings', self); title.setProperty('pageTitle', True)
         subtitle = QLabel('Manage theme and system preferences.', self)
@@ -253,6 +257,7 @@ class SettingsPage(QWidget):
         root.addStretch()
 
     def _load_staff_dropdown(self):
+        # Loads dropdown
         """Load staff members into the staff select dropdown."""
         try:
             self.staff_select.blockSignals(True)
@@ -274,6 +279,7 @@ class SettingsPage(QWidget):
             QMessageBox.warning(self, 'Error', f'Failed to load staff list: {exc}')
 
     def refresh(self):
+        # Refreshes data
         self.theme_menu.setCurrentText('Dark' if self.settings_service.get_theme() == 'dark' else 'Light')
         if is_admin(self.current_user):
             schedule = self.settings_service.get_shift_schedule()
@@ -292,10 +298,12 @@ class SettingsPage(QWidget):
             self.refresh_accounts_table()
 
     def search(self, query):
+        # Search data
         if is_admin(self.current_user) and hasattr(self, "accounts_table"):
             self.accounts_table.filter_rows(query)
 
     def save_settings(self):
+        # Save settings
         selected = self.theme_menu.currentText().lower()
         try:
             self.settings_service.set_theme(selected)
@@ -305,6 +313,7 @@ class SettingsPage(QWidget):
             QMessageBox.critical(self, 'Save Error', str(exc))
 
     def create_account(self):
+        # Creates account
         if not is_admin(self.current_user):
             QMessageBox.critical(self, "Permission Denied", "Only admin can create accounts."); return
         try:
@@ -328,6 +337,7 @@ class SettingsPage(QWidget):
             QMessageBox.critical(self, "Create Account Error", str(exc))
 
     def refresh_accounts_table(self):
+        # Refreshes table
         if not is_admin(self.current_user): return
         try:
             rows = self.auth_service.list_accounts(self.current_user)
@@ -344,12 +354,14 @@ class SettingsPage(QWidget):
             self.accounts_status.setText(f"Unable to load accounts: {exc}")
 
     def _get_selected_user_id(self):
+        # Gets id
         sel = self.accounts_table.selection()
         if not sel: return None
         try: return int(sel[0])
         except Exception: return None
 
     def toggle_selected_account_status(self):
+        # Toggle status
         uid = self._get_selected_user_id()
         if uid is None:
             QMessageBox.warning(self, "Selection Required", "Select an account from the table."); return
@@ -366,6 +378,7 @@ class SettingsPage(QWidget):
             QMessageBox.critical(self, "Account Update Error", str(exc))
 
     def reset_selected_account_password(self):
+        # Reset password
         uid = self._get_selected_user_id()
         if uid is None:
             QMessageBox.warning(self, "Selection Required", "Select an account from the table."); return
@@ -382,6 +395,7 @@ class SettingsPage(QWidget):
             QMessageBox.critical(self, "Password Reset Error", str(exc))
 
     def save_shift_schedule(self):
+        # Save schedule
         if not is_admin(self.current_user):
             QMessageBox.critical(self, "Permission Denied", "Only admin can set shift schedule."); return
         try:
@@ -412,6 +426,7 @@ class SettingsPage(QWidget):
             QMessageBox.critical(self, "Shift Schedule Error", str(exc))
 
     def _on_staff_selected(self, index):
+        # On selected
         """Load shift schedule for selected staff member."""
         if index < 0 or self.staff_select.count() == 0:
             return
@@ -445,6 +460,7 @@ class SettingsPage(QWidget):
             QMessageBox.warning(self, 'Error', f'Failed to load staff shift: {exc}')
 
     def _on_shift_preset_changed(self, index):
+        # On changed
         """Auto-fill time fields when a shift preset is selected."""
         if index < 0:
             return
@@ -464,6 +480,7 @@ class SettingsPage(QWidget):
         self.staff_night_end.setText(night_end if night_end else "")
 
     def save_staff_shift_schedule(self):
+        # Save schedule
         """Save custom shift schedule for selected staff member."""
         if not is_admin(self.current_user):
             QMessageBox.critical(self, "Permission Denied", "Only admin can set staff shift schedule."); return
@@ -500,6 +517,7 @@ class SettingsPage(QWidget):
             QMessageBox.critical(self, "Save Shift Error", str(exc))
 
     def clear_staff_shift_schedule(self):
+        # Clear schedule
         """Clear custom shift schedule and use global for selected staff."""
         if not is_admin(self.current_user):
             QMessageBox.critical(self, "Permission Denied", "Only admin can manage staff shifts."); return

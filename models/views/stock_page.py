@@ -20,6 +20,7 @@ _STATUS_COLORS = {
 
 class StockPage(QWidget):
     def __init__(self, inventory_service, tokens, current_user=None, *args, **kwargs):
+        # Initializes object
         super().__init__(*args, **kwargs)
         self.inventory_service = inventory_service
         self.tokens = tokens
@@ -29,6 +30,7 @@ class StockPage(QWidget):
         self._build_ui()
 
     def _apply_modern_styling(self):
+        # Apply styling
         """Apply modern styling to buttons and page."""
         self.setStyleSheet(f"""
             QWidget {{
@@ -78,6 +80,7 @@ class StockPage(QWidget):
         """)
 
     def _add_card_shadow(self, widget):
+        # Adds shadow
         """Add drop shadow effect to a card widget."""
         shadow = QGraphicsDropShadowEffect(widget)
         shadow.setBlurRadius(12)
@@ -86,6 +89,7 @@ class StockPage(QWidget):
         widget.setGraphicsEffect(shadow)
 
     def _build_ui(self):
+        # Build ui
         root = QVBoxLayout(self)
         root.setContentsMargins(24,24,24,24); root.setSpacing(24)
         header = QHBoxLayout()
@@ -134,6 +138,7 @@ class StockPage(QWidget):
         tl.addWidget(self.table); root.addWidget(tc, 1)
 
     def refresh(self):
+        # Refreshes data
         self.inventory_service.refresh_stock_availability()
         stocks = self.inventory_service.get_active_stocks()
         self._stock_by_id = {s.stock_id: s for s in stocks}
@@ -158,6 +163,7 @@ class StockPage(QWidget):
         self._update_sell_button()
 
     def search(self, query):
+        # Search data
         q = query.lower().strip()
         for r in range(self.table.rowCount()):
             vals = [self.table.item(r,c).text() for c in range(self.table.columnCount()) if self.table.item(r,c)]
@@ -165,6 +171,7 @@ class StockPage(QWidget):
         self._update_sell_button()
 
     def _selected_stock(self):
+        # Selected stock
         sel = self.table.selectedItems()
         if not sel: return None
         pi = self.table.item(sel[0].row(), 0)
@@ -173,6 +180,7 @@ class StockPage(QWidget):
         except (TypeError, ValueError): return None
 
     def _update_sell_button(self):
+        # Updates button
         stock = self._selected_stock()
         self.sell_button.setEnabled(bool(is_staff(self.current_user) and stock and stock.status == StockStatus.AVAILABLE))
         if not is_staff(self.current_user):
@@ -183,6 +191,7 @@ class StockPage(QWidget):
             self.sell_button.setToolTip("Record the selected stock as sold.")
 
     def _sell_selected_stock(self):
+        # Sell stock
         stock = self._selected_stock()
         if stock is None:
             QMessageBox.warning(self, "Selection Required", "Select an available stock item first."); return
@@ -205,6 +214,7 @@ class StockPage(QWidget):
             QMessageBox.critical(self, "Sale Error", friendly_error(exc))
 
     def _show_add_stock_dialog(self):
+        # Show dialog
         if not is_admin(self.current_user):
             QMessageBox.critical(self, "Permission Denied", "Only admin accounts can add stock."); return
         if AddStockDialog(self.inventory_service, self.tokens, self).exec() == QDialog.DialogCode.Accepted:
@@ -213,6 +223,7 @@ class StockPage(QWidget):
 
 class AddStockDialog(QDialog):
     def __init__(self, inventory_service, tokens, parent=None):
+        # Initializes object
         super().__init__(parent)
         self.inventory_service = inventory_service
         self.tokens = tokens
@@ -221,6 +232,7 @@ class AddStockDialog(QDialog):
         self._build_ui()
 
     def _build_ui(self):
+        # Build ui
         layout = QVBoxLayout(self); form = QFormLayout()
         self.product_input = QLineEdit(self); self.product_input.setText("Ice"); self.product_input.setMaxLength(80)
         form.addRow("Product", self.product_input)
@@ -246,11 +258,13 @@ class AddStockDialog(QDialog):
         layout.addWidget(bb)
 
     def _toggle_ready_now(self, checked):
+        # Toggle now
         self.freeze_input.setEnabled(not checked)
         if checked: self.freeze_input.setValue(0)
         elif self.freeze_input.value() == 0: self.freeze_input.setValue(3)
 
     def _save(self):
+        # Save data
         try:
             self.inventory_service.add_stock(
                 self.quantity_input.value(), self.product_input.text().strip(),

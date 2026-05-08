@@ -25,6 +25,7 @@ class LoginPage(QWidget):
         on_login_success: Callable[[User], None] = None, initial_error: str = '',
         *args, **kwargs,
     ):
+        # Initializes object
         super().__init__(master, *args, **kwargs)
         self.auth_service = auth_service
         self.tokens = tokens or {}
@@ -33,6 +34,7 @@ class LoginPage(QWidget):
         self._build_ui()
 
     def _build_ui(self):
+        # Build ui
         """Build the Mr. Ice Buddha branded login page."""
         # Transparent so parent BackgroundWidget's icy image shows through
         self.setStyleSheet('background: transparent;')
@@ -191,6 +193,7 @@ class LoginPage(QWidget):
 
     def _create_input_field(self, parent, placeholder: str, icon_name: str,
                             echo_password: bool = False) -> QFrame:
+        # Creates field
         """Create a styled input field with icon, matching the icy design."""
         container = QFrame(parent)
         container.setObjectName("inputContainer")
@@ -271,6 +274,7 @@ class LoginPage(QWidget):
     # ── Login logic (unchanged) ───────────────────────────────────────────
 
     def _on_login_clicked(self):
+        # On clicked
         """Handle login button click using shared validators."""
         username_text = self._get_username()
         password_text = self._get_password()
@@ -302,20 +306,25 @@ class LoginPage(QWidget):
             self._show_error('Invalid username or password')
 
     def _get_username(self) -> str:
+        # Gets username
         return self.username_input.findChild(QLineEdit).text()
 
     def _get_password(self) -> str:
+        # Gets password
         return self.password_input.findChild(QLineEdit).text()
 
     def _show_validation_error(self, message: str) -> None:
+        # Show error
         self._show_error(message)
         QMessageBox.warning(self, 'Validation', message)
 
     def _show_error(self, message: str):
+        # Show error
         """Display error message."""
         self.error_label.setText(message)
 
     def clear_fields(self):
+        # Clear fields
         """Clear all input fields."""
         self.username_input.findChild(QLineEdit).clear()
         self.password_input.findChild(QLineEdit).clear()

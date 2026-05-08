@@ -18,6 +18,7 @@ class Announcement:
 
     @classmethod
     def from_row(cls, row: Tuple[Any, ...]) -> 'Announcement':
+        # From row
         return cls(
             announcement_id=int(row[0]),
             title=str(row[1] or ''),
@@ -44,6 +45,7 @@ class AnnouncementSummary:
 
     @classmethod
     def from_row(cls, row: Tuple[Any, ...]) -> 'AnnouncementSummary':
+        # From row
         return cls(
             announcement_id=int(row[0]),
             title=str(row[1] or ''),

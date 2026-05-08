@@ -151,10 +151,12 @@ TOKENS: Dict[str, Dict[str, str]] = {
 
 
 def init_theme(theme: str = "dark") -> Dict[str, str]:
+    # Init theme
     return TOKENS.get(theme.lower(), TOKENS["dark"])
 
 
 def build_qss(tokens: Dict[str, str]) -> str:
+    # Build qss
     r_sm = f"{tokens['radius_sm']}px"
     r_md = f"{tokens['radius_md']}px"
     r_lg = f"{tokens['radius_lg']}px"
@@ -533,6 +535,7 @@ def build_qss(tokens: Dict[str, str]) -> str:
 
 
 def apply_app_style(app, theme: str = "dark") -> Dict[str, str]:
+    # Apply style
     tokens = init_theme(theme)
     try:
         app.setStyleSheet(build_qss(tokens))

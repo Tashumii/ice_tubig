@@ -4,13 +4,16 @@ from database import DatabaseManager
 
 class ReportService:
     def __init__(self, database_manager: DatabaseManager):
+        # Initializes object
         self._db = database_manager
 
     def get_revenue_summary(self) -> Dict[str, float]:
+        # Gets summary
         """Get revenue summary: total, this month, this year."""
         return self._db.fetch_revenue_summary()
 
     def get_sales_trend(self, days: int = 30) -> List[Dict[str, Any]]:
+        # Gets trend
         """Get daily sales trend aggregated by date, sorted ascending."""
         sales = self._db.fetch_sales_by_date_range(None, None, days) or []
 
@@ -35,12 +38,14 @@ class ReportService:
         return sorted(trend_dict.values(), key=lambda x: x['date'])
 
     def get_stock_status_report(self) -> Dict[str, int]:
+        # Gets report
         """Get stock status breakdown."""
         breakdown = self._db.fetch_stock_status_breakdown()
         total = breakdown['available'] + breakdown['freezing'] + breakdown['sold']
         return {**breakdown, 'total': total}
 
     def get_top_products(self, limit: int = 10) -> List[Dict[str, Any]]:
+        # Gets products
         """Get top products by sales."""
         products = self._db.fetch_top_products(limit) or []
         result: List[Dict[str, Any]] = []
@@ -63,6 +68,7 @@ class ReportService:
         return result
 
     def get_activity_summary(self) -> Dict[str, Any]:
+        # Gets summary
         """Get activity summary combining events, revenue, and stock status."""
         total_events = self._db.fetch_activity_event_count()
         revenue = self.get_revenue_summary()
