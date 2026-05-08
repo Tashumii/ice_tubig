@@ -67,6 +67,7 @@ class SalesService:
     def record_clock_in(self, user_id: int) -> None:
         # Record in
         if not isinstance(user_id, int) or user_id < 1:
+            print("Err: Invalid user")
             raise ValueError("Invalid user ID")
         self._db.clock_in_user(user_id)
 
@@ -76,6 +77,7 @@ class SalesService:
     def record_clock_out(self, user_id: int) -> None:
         # Record out
         if not isinstance(user_id, int) or user_id < 1:
+            print("Err: Invalid user")
             raise ValueError("Invalid user ID")
         self._db.clock_out_user(user_id)
 

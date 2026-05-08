@@ -386,7 +386,7 @@ class DatabaseManager:
                 u.user_id AS sold_by_user_id,
                 u.username AS sold_by_username
             FROM ice_sales s
-            JOIN ice_stocks i ON s.stock_id = i.stock_id
+            INNER JOIN ice_stocks i ON s.stock_id = i.stock_id
             LEFT JOIN users u ON u.user_id = s.sold_by_user_id;
             """,
             """
@@ -417,7 +417,7 @@ class DatabaseManager:
                 l.created_at,
                 l.updated_at
             FROM employee_shift_logs l
-            JOIN users u ON u.user_id = l.user_id;
+            INNER JOIN users u ON u.user_id = l.user_id;
             """,
             """
             DROP VIEW IF EXISTS vw_available_products;
@@ -827,6 +827,7 @@ class DatabaseManager:
                 f"{username} tried to clock in again while already On Site.",
                 "warning",
             )
+            print("Err: You are alre")
             raise DatabaseError("You are already On Site for today's shift.")
         if existing and existing[5]:
             self._create_admin_notification(
@@ -836,6 +837,7 @@ class DatabaseManager:
                 f"{username} tried to clock in after already timing out today.",
                 "warning",
             )
+            print("Err: You already")
             raise DatabaseError("You already timed out today. Ask admin to adjust your shift if this is a mistake.")
 
         query = """
@@ -893,6 +895,7 @@ class DatabaseManager:
                 f"{username} tried to time out without being On Site first.",
                 "warning",
             )
+            print("Err: You must clo")
             raise DatabaseError("You must clock in before timing out.")
         if existing[5]:
             self._create_admin_notification(
@@ -902,6 +905,7 @@ class DatabaseManager:
                 f"{username} tried to time out again after {existing[5]}.",
                 "warning",
             )
+            print("Err: You already")
             raise DatabaseError("You already timed out today.")
 
         query = """
@@ -1008,12 +1012,16 @@ class DatabaseManager:
     def add_ice_stock_via_procedure(self, quantity=1, product_name='Ice', weight_kg=25.0, freeze_duration_hours=3, price=35.00, instant=False):
         # Adds procedure
         if quantity < 1:
+            print("Err: Quantity mus")
             raise DatabaseError("Quantity must be at least 1")
         if not isinstance(product_name, str) or not product_name.strip():
+            print("Err: Product name")
             raise DatabaseError("Product name is required")
         if weight_kg <= 0:
+            print("Err: Weight must")
             raise DatabaseError("Weight must be greater than 0")
         if price < 0:
+            print("Err: Price cannot")
             raise DatabaseError("Price cannot be negative")
 
         duration_value = 0 if instant else freeze_duration_hours
@@ -1048,8 +1056,10 @@ class DatabaseManager:
     def sell_stock_via_procedure(self, stock_id, sold_by_user_id=None):
         # Sell procedure
         if not isinstance(stock_id, int) or stock_id < 1:
+            print("Err: Invalid stoc")
             raise DatabaseError("Invalid stock identifier")
         if sold_by_user_id is not None and (not isinstance(sold_by_user_id, int) or sold_by_user_id < 1):
+            print("Err: Invalid sell")
             raise DatabaseError("Invalid seller identifier")
 
         stock = self._execute_query(
@@ -1058,6 +1068,7 @@ class DatabaseManager:
             fetchone=True,
         )
         if not stock:
+            print("Err: Stock not fo")
             raise DatabaseError("Stock not found")
 
         product_name = str(stock[0] or "Ice")
@@ -1078,6 +1089,7 @@ class DatabaseManager:
                     f"{seller_name} tried to sell stock #{stock_id}, but it is {humanize_status(status)}.",
                     "warning",
                 )
+            print("Err: Stock not av")
             raise DatabaseError("Stock not available for sale")
 
         if sold_by_user_id is not None:
@@ -1090,6 +1102,7 @@ class DatabaseManager:
                     f"{seller_name} tried to sell {product_name}, but they are not On Site.",
                     "warning",
                 )
+                print("Err: You must be")
                 raise DatabaseError("You must be On Site before selling stock.")
             if shift_state[5]:
                 self._create_admin_notification(
@@ -1099,6 +1112,7 @@ class DatabaseManager:
                     f"{seller_name} tried to sell {product_name} after timing out at {shift_state[5]}.",
                     "warning",
                 )
+                print("Err: You already")
                 raise DatabaseError("You already timed out. You cannot sell after Time Out.")
 
         if self.procedure_mode:
@@ -1125,8 +1139,10 @@ class DatabaseManager:
                 )
                 current_stock = cursor.fetchone()
                 if not current_stock:
+                    print("Err: Stock not fo")
                     raise DatabaseError("Stock not found")
                 if current_stock[0] != 'AVAILABLE':
+                    print("Err: Stock not av")
                     raise DatabaseError("Stock not available for sale")
 
                 cursor.execute(
@@ -1201,7 +1217,7 @@ class DatabaseManager:
             self._ensure_connection_alive()
             with self.conn.cursor() as cursor:
                 cursor.execute(
-                    "SELECT r.role_name FROM user_roles ur JOIN roles r ON ur.role_id = r.role_id WHERE ur.user_id = %s",
+                    "SELECT r.role_name FROM user_roles ur INNER JOIN roles r ON ur.role_id = r.role_id WHERE ur.user_id = %s",
                     (user_id,),
                 )
                 return [row[0] for row in cursor.fetchall()]
@@ -1231,6 +1247,7 @@ class DatabaseManager:
         """Create a user and assign a role. Returns new user_id."""
         normalized_role = (role_name or "").strip().lower()
         if normalized_role not in ("admin", "staff"):
+            print("Err: Invalid role")
             raise DatabaseError("Invalid role. Allowed roles: admin, staff")
 
         try:
@@ -1239,6 +1256,7 @@ class DatabaseManager:
             with self.conn.cursor() as cursor:
                 cursor.execute("SELECT user_id FROM users WHERE username = %s", (username,))
                 if cursor.fetchone():
+                    print("Err: Username alr")
                     raise DatabaseError("Username already exists")
 
                 cursor.execute(
@@ -1250,6 +1268,7 @@ class DatabaseManager:
                 cursor.execute("SELECT role_id FROM roles WHERE role_name = %s", (normalized_role,))
                 role_row = cursor.fetchone()
                 if not role_row:
+                    print("Err: Role not fou")
                     raise DatabaseError("Role not found")
 
                 cursor.execute(
@@ -1426,10 +1445,13 @@ class DatabaseManager:
         # Filter range
         """Filter sales within price range."""
         if not isinstance(min_price, (int, float)) or not isinstance(max_price, (int, float)):
+            print("Err: Price range")
             raise DatabaseError("Price range must be numeric")
         if min_price < 0 or max_price < 0:
+            print("Err: Price cannot")
             raise DatabaseError("Price cannot be negative")
         if min_price > max_price:
+            print("Err: Minimum pric")
             raise DatabaseError("Minimum price cannot exceed maximum price")
         try:
             self._ensure_connection_alive()
@@ -1446,6 +1468,7 @@ class DatabaseManager:
         # Filter date
         """Filter sales within date range."""
         if not start_date or not end_date:
+            print("Err: Start and en")
             raise DatabaseError("Start and end dates are required")
         try:
             self._ensure_connection_alive()
@@ -1496,8 +1519,8 @@ class DatabaseManager:
                 ar.read_at,
                 a.deleted_at
             FROM announcements a
-            JOIN users u ON u.user_id = a.created_by_user_id
-            JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
+            INNER JOIN users u ON u.user_id = a.created_by_user_id
+            INNER JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
             WHERE ar.user_id = %s AND a.is_active = 1 AND a.deleted_at IS NULL
             ORDER BY a.created_at DESC
         """
@@ -1518,7 +1541,7 @@ class DatabaseManager:
                 SUM(ar.is_read) AS read_count,
                 a.deleted_at
             FROM announcements a
-            JOIN users u ON u.user_id = a.created_by_user_id
+            INNER JOIN users u ON u.user_id = a.created_by_user_id
             LEFT JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
             WHERE a.deleted_at IS NULL
             GROUP BY a.announcement_id, a.title, a.message, a.created_at, u.username, a.is_active, a.deleted_at
@@ -1590,7 +1613,7 @@ class DatabaseManager:
                 SUM(ar.is_read) AS read_count,
                 a.deleted_at
             FROM announcements a
-            JOIN users u ON u.user_id = a.created_by_user_id
+            INNER JOIN users u ON u.user_id = a.created_by_user_id
             LEFT JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
             WHERE a.deleted_at IS NOT NULL
             GROUP BY a.announcement_id, a.title, a.message, a.created_at, u.username, a.is_active, a.deleted_at
@@ -1604,8 +1627,8 @@ class DatabaseManager:
         query = """
             SELECT DISTINCT u.user_id, u.username
             FROM users u
-            JOIN user_roles ur ON ur.user_id = u.user_id
-            JOIN roles r ON r.role_id = ur.role_id
+            INNER JOIN user_roles ur ON ur.user_id = u.user_id
+            INNER JOIN roles r ON r.role_id = ur.role_id
             WHERE r.role_name = 'staff' AND u.is_active = 1
             ORDER BY u.username
         """
@@ -1640,8 +1663,8 @@ class DatabaseManager:
             SELECT DISTINCT u.user_id, u.username, u.shift_start_time, u.shift_end_time, 
                    u.night_shift_start_time, u.night_shift_end_time
             FROM users u
-            JOIN user_roles ur ON ur.user_id = u.user_id
-            JOIN roles r ON r.role_id = ur.role_id
+            INNER JOIN user_roles ur ON ur.user_id = u.user_id
+            INNER JOIN roles r ON r.role_id = ur.role_id
             WHERE r.role_name = 'staff' AND u.is_active = 1
             ORDER BY u.username
         """

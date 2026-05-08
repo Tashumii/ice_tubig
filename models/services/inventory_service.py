@@ -28,19 +28,25 @@ class InventoryService:
                   freeze_duration_hours: int, price: float, instant: bool) -> None:
         # Adds stock
         if not isinstance(quantity, int):
+            print("Err: Quantity mus")
             raise ValueError("Quantity must be a whole number.")
         if quantity < 1 or quantity > 10000:
+            print("Err: Quantity mus")
             raise ValueError("Quantity must be between 1 and 10,000.")
 
         clean_product = (product_name or "").strip()
         clean_product = clean_product.title() if clean_product else "Ice"
         if len(clean_product) > 80:
+            print("Err: Product name")
             raise ValueError("Product name must be 80 characters or fewer.")
         if kg <= 0 or kg > 999.99:
+            print("Err: Weight must")
             raise ValueError("Weight must be between 0.01 and 999.99 kg.")
         if price < 0 or price > 99999999.99:
+            print("Err: Price must b")
             raise ValueError("Price must be between 0 and 99,999,999.99.")
         if freeze_duration_hours < 0 or freeze_duration_hours > 8760:
+            print("Err: Freeze durat")
             raise ValueError("Freeze duration must be between 0 and 8,760 hours.")
 
         # Prevent redundant rapid submission of the same stock
@@ -62,8 +68,10 @@ class InventoryService:
     def record_stock_sale(self, stock_id: int, sold_by_user_id: Optional[int] = None) -> None:
         # Record sale
         if not isinstance(stock_id, int) or stock_id < 1:
+            print("Err: Invalid stoc")
             raise ValueError("Invalid stock identifier.")
         if sold_by_user_id is not None and (not isinstance(sold_by_user_id, int) or sold_by_user_id < 1):
+            print("Err: Invalid user")
             raise ValueError("Invalid user identifier.")
         self._db.sell_stock_via_procedure(stock_id, sold_by_user_id)
 

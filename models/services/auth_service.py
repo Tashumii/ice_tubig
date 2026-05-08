@@ -40,6 +40,7 @@ class AuthService:
         account_type supports: 'admin', 'employee' (mapped to 'staff'), 'staff'
         """
         if not actor or not self.has_role(actor, "admin"):
+            print("Err: Only admin c")
             raise PermissionError("Only admin can create new accounts.")
 
         is_valid, error = validate_username(username)
@@ -54,6 +55,7 @@ class AuthService:
         requested = (account_type or "").strip().lower()
         role_name = "staff" if requested == "employee" else requested
         if role_name not in ("admin", "staff"):
+            print("Err: Account type")
             raise ValueError("Account type must be Admin or Employee.")
 
         # Prevent redundant user accounts with case-insensitive check
@@ -70,6 +72,7 @@ class AuthService:
     def list_user_accounts(self, actor: User) -> List[dict]:
         # List accounts
         if not actor or not self.has_role(actor, "admin"):
+            print("Err: Only admin c")
             raise PermissionError("Only admin can view accounts.")
         rows = self._db.fetch_users_with_roles()
         return [
@@ -89,14 +92,17 @@ class AuthService:
     def set_account_active(self, actor: User, target_user_id: int, is_active: bool) -> None:
         # Sets active
         if not actor or not self.has_role(actor, "admin"):
+            print("Err: Only admin c")
             raise PermissionError("Only admin can update account status.")
         if actor.user_id == target_user_id and not is_active:
+            print("Err: You cannot d")
             raise ValueError("You cannot disable your own account.")
         self._db.set_user_active(target_user_id, is_active)
 
     def reset_account_password(self, actor: User, target_user_id: int, new_password: str) -> None:
         # Reset password
         if not actor or not self.has_role(actor, "admin"):
+            print("Err: Only admin c")
             raise PermissionError("Only admin can reset account passwords.")
         is_valid, error = validate_password(new_password)
         if not is_valid:

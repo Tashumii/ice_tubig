@@ -205,7 +205,7 @@ SELECT
     u.user_id AS sold_by_user_id,
     u.username AS sold_by_username
 FROM ice_sales s
-JOIN ice_stocks i ON s.stock_id = i.stock_id
+INNER JOIN ice_stocks i ON s.stock_id = i.stock_id
 LEFT JOIN users u ON u.user_id = s.sold_by_user_id;
 
 DROP VIEW IF EXISTS vw_daily_sales_summary;
@@ -234,7 +234,7 @@ SELECT
     l.created_at,
     l.updated_at
 FROM employee_shift_logs l
-JOIN users u ON u.user_id = l.user_id;
+INNER JOIN users u ON u.user_id = l.user_id;
 
 DROP VIEW IF EXISTS vw_available_products;
 CREATE VIEW vw_available_products AS
@@ -568,7 +568,7 @@ SELECT user_id, username, password_hash, created_at FROM users WHERE username = 
 
 SELECT user_id, username, password_hash, created_at FROM users WHERE username = %s;
 
-SELECT r.role_name FROM user_roles ur JOIN roles r ON ur.role_id = r.role_id WHERE ur.user_id = %s;
+SELECT r.role_name FROM user_roles ur INNER JOIN roles r ON ur.role_id = r.role_id WHERE ur.user_id = %s;
 
 SELECT user_id FROM users WHERE username = %s;
 
@@ -619,8 +619,8 @@ SELECT
     ar.read_at,
     a.deleted_at
 FROM announcements a
-JOIN users u ON u.user_id = a.created_by_user_id
-JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
+INNER JOIN users u ON u.user_id = a.created_by_user_id
+INNER JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
 WHERE ar.user_id = %s AND a.is_active = 1 AND a.deleted_at IS NULL
 ORDER BY a.created_at DESC;
 
@@ -635,7 +635,7 @@ SELECT
     SUM(ar.is_read) AS read_count,
     a.deleted_at
 FROM announcements a
-JOIN users u ON u.user_id = a.created_by_user_id
+INNER JOIN users u ON u.user_id = a.created_by_user_id
 LEFT JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
 WHERE a.deleted_at IS NULL
 GROUP BY a.announcement_id, a.title, a.message, a.created_at, u.username, a.is_active, a.deleted_at
@@ -662,7 +662,7 @@ SELECT
     SUM(ar.is_read) AS read_count,
     a.deleted_at
 FROM announcements a
-JOIN users u ON u.user_id = a.created_by_user_id
+INNER JOIN users u ON u.user_id = a.created_by_user_id
 LEFT JOIN announcement_recipients ar ON ar.announcement_id = a.announcement_id
 WHERE a.deleted_at IS NOT NULL
 GROUP BY a.announcement_id, a.title, a.message, a.created_at, u.username, a.is_active, a.deleted_at
@@ -670,8 +670,8 @@ ORDER BY a.deleted_at DESC;
 
 SELECT DISTINCT u.user_id, u.username
 FROM users u
-JOIN user_roles ur ON ur.user_id = u.user_id
-JOIN roles r ON r.role_id = ur.role_id
+INNER JOIN user_roles ur ON ur.user_id = u.user_id
+INNER JOIN roles r ON r.role_id = ur.role_id
 WHERE r.role_name = 'staff' AND u.is_active = 1
 ORDER BY u.username;
 
@@ -681,8 +681,8 @@ UPDATE users SET shift_start_time = %s, shift_end_time = %s, night_shift_start_t
 
 SELECT DISTINCT u.user_id, u.username, u.shift_start_time, u.shift_end_time, u.night_shift_start_time, u.night_shift_end_time
 FROM users u
-JOIN user_roles ur ON ur.user_id = u.user_id
-JOIN roles r ON r.role_id = ur.role_id
+INNER JOIN user_roles ur ON ur.user_id = u.user_id
+INNER JOIN roles r ON r.role_id = ur.role_id
 WHERE r.role_name = 'staff' AND u.is_active = 1
 ORDER BY u.username;
 

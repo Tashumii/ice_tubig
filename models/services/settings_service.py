@@ -17,7 +17,8 @@ class SettingsService:
         # Sets theme
         theme_value = theme.lower().strip()
         if theme_value not in {'light', 'dark'}:
-            raise DatabaseError('Invalid theme selection')
+            print("Err: Invalid them")
+            raise DatabaseError("Invalid theme selection")
         self._db.update_theme_setting(theme_value)
 
     def get_shift_schedule(self) -> dict:
@@ -39,8 +40,10 @@ class SettingsService:
         start = normalize_shift_time(shift_start_time, "Shift start")
         end = normalize_shift_time(shift_end_time, "Shift end")
         if start == end:
+            print("Err: Shift start")
             raise DatabaseError("Shift start and end cannot be the same.")
         if start > end:
+            print("Err: Shift end mu")
             raise DatabaseError("Shift end must be later than shift start.")
         
         # Validate night shift if provided
@@ -50,8 +53,10 @@ class SettingsService:
             night_start = normalize_shift_time(night_shift_start_time, "Night shift start")
             night_end = normalize_shift_time(night_shift_end_time, "Night shift end")
             if night_start == night_end:
+                print("Err: Night shift")
                 raise DatabaseError("Night shift start and end cannot be the same.")
             if night_start > night_end:
+                print("Err: Night shift")
                 raise DatabaseError("Night shift end must be later than night shift start.")
         
         self._db.update_shift_schedule(start, end, night_start, night_end)
@@ -82,8 +87,10 @@ class SettingsService:
                 start = normalize_shift_time(shift_start_time, "Shift start")
                 end = normalize_shift_time(shift_end_time, "Shift end")
                 if start == end:
+                    print("Err: Shift start")
                     raise DatabaseError("Shift start and end cannot be the same.")
             else:
+                print("Err: Both shift s")
                 raise DatabaseError("Both shift start and end times are required.")
             
             # Validate night shift if provided
@@ -91,10 +98,12 @@ class SettingsService:
             night_end = None
             if night_shift_start_time or night_shift_end_time:
                 if not (night_shift_start_time and night_shift_end_time):
+                    print("Err: Both night s")
                     raise DatabaseError("Both night shift start and end times are required.")
                 night_start = normalize_shift_time(night_shift_start_time, "Night shift start")
                 night_end = normalize_shift_time(night_shift_end_time, "Night shift end")
                 if night_start == night_end:
+                    print("Err: Night shift")
                     raise DatabaseError("Night shift start and end cannot be the same.")
             
             self._db.update_user_shift_schedule(user_id, start, end, night_start, night_end)
