@@ -11,6 +11,7 @@ from models.services.inventory_service import InventoryService
 from models.stock import StockStatus
 from utils import friendly_error, humanize_status, is_admin, is_staff
 import styles
+from datetime import datetime, timedelta
 
 _STATUS_COLORS = {
     StockStatus.AVAILABLE: ('#0e3d2e', '#3FD26B'),     # Green — ready
@@ -114,12 +115,12 @@ class StockPage(QWidget):
         tc.setStyleSheet(f"QFrame{{background:{self.tokens.get('bg_surface', 'rgba(15, 28, 48, 0.95)')};border:1px solid {self.tokens.get('card_border','rgba(100, 184, 224, 0.30)')};border-radius:8px;}}")
         tl = QVBoxLayout(tc); tl.setContentsMargins(0,0,0,0); tl.setSpacing(0)
         self.table = QTableWidget(tc)
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(['Product','Weight','Status','Price'])
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(['Product','Weight','Status','Price', 'Time Left'])
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         for c in (1,2,3): self.table.horizontalHeader().setSectionResizeMode(c, QHeaderView.ResizeMode.Fixed)
-        self.table.setColumnWidth(1,120); self.table.setColumnWidth(2,140); self.table.setColumnWidth(3,140)
+        self.table.setColumnWidth(1,120); self.table.setColumnWidth(2,140); self.table.setColumnWidth(3,100)
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
@@ -160,7 +161,40 @@ class StockPage(QWidget):
             pri = QTableWidgetItem(f"\u20b1 {s.price:.2f}")
             pri.setTextAlignment(Qt.AlignmentFlag.AlignVCenter|Qt.AlignmentFlag.AlignLeft)
             self.table.setItem(r, 3, pri)
+            
+            ti = QTableWidgetItem()
+            ti.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.table.setItem(r, 4, ti)
+            
         self._update_sell_button()
+        self.update_countdowns()
+
+    def update_countdowns(self):
+        # Update countdowns
+        now = datetime.now()
+        for r in range(self.table.rowCount()):
+            pi = self.table.item(r, 0)
+            if not pi: continue
+            stock_id = pi.data(Qt.ItemDataRole.UserRole)
+            stock = self._stock_by_id.get(stock_id)
+            if not stock: continue
+            
+            ti = self.table.item(r, 4)
+            if not ti: continue
+            
+            if stock.status == StockStatus.AVAILABLE:
+                ti.setText("Ready")
+            elif stock.status == StockStatus.SOLD:
+                ti.setText("-")
+            else:
+                target_time = stock.time_added + timedelta(hours=stock.freeze_duration_hours)
+                diff = target_time - now
+                if diff.total_seconds() <= 0:
+                    ti.setText("Ready soon...")
+                else:
+                    hours, rem = divmod(diff.total_seconds(), 3600)
+                    minutes, seconds = divmod(rem, 60)
+                    ti.setText(f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}")
 
     def search(self, query):
         # Search data
