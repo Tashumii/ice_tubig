@@ -9,7 +9,7 @@ import qtawesome as qta
 from models.services.announcement_service import AnnouncementService
 from models.user import User
 from utils import is_admin
-from views.components.native_polish import apply_card_polish
+from .components.native_polish import apply_card_polish
 import styles
 
 
@@ -91,51 +91,44 @@ class AnnouncementsPage(QWidget):
         header = QHBoxLayout()
         title = QLabel('Announcements'); title.setProperty('pageTitle', True)
         header.addWidget(title); header.addStretch()
-        if self._user_is_admin:
-            create_btn = QPushButton('+ Create Announcement')
-            create_btn.setIcon(qta.icon('fa5s.plus-circle', color=self.tokens.get('accent_1','#64B8E0')))
-            create_btn.setProperty('primary', True)
-            create_btn.clicked.connect(self._show_create_dialog)
-            header.addWidget(create_btn)
+        create_btn = QPushButton('+ Create Announcement')
+        create_btn.setIcon(qta.icon('fa5s.plus-circle', color=self.tokens.get('accent_1','#64B8E0')))
+        create_btn.setProperty('primary', True)
+        create_btn.clicked.connect(self._show_create_dialog)
+        header.addWidget(create_btn)
         layout.addLayout(header)
         
-        # Create tabs for active and deleted announcements (admin only)
-        if self._user_is_admin:
-            self.tab_widget = QTabWidget()
-            self.tab_widget.setStyleSheet(f"""
-                QTabWidget::pane {{ border: 1px solid {self.tokens.get('card_border', 'rgba(100, 184, 224, 0.25)')}; }}
-                QTabBar::tab {{
-                    background: {self.tokens.get('bg_base', 'rgba(10, 25, 47, 0.6)')};
-                    color: {self.tokens.get('text_primary', '#EDF6FC')};
-                    padding: 8px 20px;
-                    border: 1px solid {self.tokens.get('card_border', 'rgba(100, 184, 224, 0.25)')};
-                    margin-right: 2px;
-                }}
-                QTabBar::tab:selected {{
-                    background: {self.tokens.get('bg_surface', 'rgba(15, 28, 48, 0.95)')};
-                    color: {self.tokens.get('accent_1', '#64B8E0')};
-                    border-bottom: 2px solid {self.tokens.get('accent_1', '#64B8E0')};
-                }}
-            """)
-            
-            # Active announcements tab
-            self.list_widget = QListWidget(self)
-            self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
-            self.list_widget.itemClicked.connect(self._on_announcement_clicked)
-            self.tab_widget.addTab(self.list_widget, "Active")
-            
-            # Deleted announcements tab
-            self.deleted_list_widget = QListWidget(self)
-            self.deleted_list_widget.setFrameShape(QFrame.Shape.NoFrame)
-            self.deleted_list_widget.itemClicked.connect(self._on_deleted_announcement_clicked)
-            self.tab_widget.addTab(self.deleted_list_widget, "Deleted")
-            
-            layout.addWidget(self.tab_widget)
-        else:
-            self.list_widget = QListWidget(self)
-            self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
-            self.list_widget.itemClicked.connect(self._on_announcement_clicked)
-            layout.addWidget(self.list_widget)
+        # Create tabs for active and deleted announcements for consistency
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setStyleSheet(f"""
+            QTabWidget::pane {{ border: 1px solid {self.tokens.get('card_border', 'rgba(100, 184, 224, 0.25)')}; }}
+            QTabBar::tab {{
+                background: {self.tokens.get('bg_base', 'rgba(10, 25, 47, 0.6)')};
+                color: {self.tokens.get('text_primary', '#EDF6FC')};
+                padding: 8px 20px;
+                border: 1px solid {self.tokens.get('card_border', 'rgba(100, 184, 224, 0.25)')};
+                margin-right: 2px;
+            }}
+            QTabBar::tab:selected {{
+                background: {self.tokens.get('bg_surface', 'rgba(15, 28, 48, 0.95)')};
+                color: {self.tokens.get('accent_1', '#64B8E0')};
+                border-bottom: 2px solid {self.tokens.get('accent_1', '#64B8E0')};
+            }}
+        """)
+        
+        # Active announcements tab
+        self.list_widget = QListWidget(self)
+        self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
+        self.list_widget.itemClicked.connect(self._on_announcement_clicked)
+        self.tab_widget.addTab(self.list_widget, "Active")
+        
+        # Deleted announcements tab
+        self.deleted_list_widget = QListWidget(self)
+        self.deleted_list_widget.setFrameShape(QFrame.Shape.NoFrame)
+        self.deleted_list_widget.itemClicked.connect(self._on_deleted_announcement_clicked)
+        self.tab_widget.addTab(self.deleted_list_widget, "Deleted")
+        
+        layout.addWidget(self.tab_widget)
 
     def refresh(self):
         self.list_widget.clear()
@@ -151,9 +144,9 @@ class AnnouncementsPage(QWidget):
                 self.list_widget.addItem(item)
                 self.list_widget.setItemWidget(item, widget)
             
-            # Load deleted announcements if admin
+            # Load deleted announcements for consistency
+            self.deleted_list_widget.clear()
             if self._user_is_admin:
-                self.deleted_list_widget.clear()
                 deleted_announcements = self.announcement_service.get_deleted_announcements(self.current_user)
                 for ann in deleted_announcements:
                     item = QListWidgetItem(self.deleted_list_widget)

@@ -818,14 +818,16 @@ class DatabaseManager:
         SELECT
             %s,
             CURRENT_DATE(),
-            s.shift_start_time,
-            s.shift_end_time,
+            COALESCE(u.shift_start_time, s.shift_start_time),
+            COALESCE(u.shift_end_time, s.shift_end_time),
             NOW(),
             CASE
-                WHEN TIME(NOW()) <= s.shift_start_time THEN 'ON_TIME'
+                WHEN TIME(NOW()) <= COALESCE(u.shift_start_time, s.shift_start_time) THEN 'ON_TIME'
                 ELSE 'LATE'
             END
-        FROM system_settings s WHERE s.id = 1
+        FROM users u
+        CROSS JOIN system_settings s
+        WHERE u.user_id = %s AND s.id = 1
         ON DUPLICATE KEY UPDATE
             actual_in = CASE
                 WHEN actual_in IS NULL THEN NOW()
@@ -837,7 +839,7 @@ class DatabaseManager:
                 ELSE attendance_status
             END
     """
-        self._execute_query(query, (user_id,), commit=True)
+        self._execute_query(query, (user_id, user_id), commit=True)
         state = self._fetch_today_shift_state(user_id)
         if state:
             status = str(state[6] or "")

@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel,
 import qtawesome as qta
 from models.services.auth_service import AuthService
 from models.services.settings_service import SettingsService
-from views.components.modern_table import ModernTable
+from .components.modern_table import ModernTable
 from utils import is_admin, validate_username, validate_password, normalize_shift_time, format_time_12h
 
 
@@ -336,6 +336,7 @@ class SettingsPage(QWidget):
                 "status": "Active" if r["is_active"] else "Disabled",
                 "created_at": r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else "-"}
                 for r in rows]
+            self.accounts_table.clear()
             self.accounts_table.insert_rows(table_rows)
             self.accounts_count.setText(f"{len(table_rows)} users")
             self.accounts_status.setText("")
@@ -474,8 +475,8 @@ class SettingsPage(QWidget):
         try:
             start = normalize_shift_time(self.staff_shift_start.text())
             end = normalize_shift_time(self.staff_shift_end.text())
-            if start == end: raise ValueError("Shift start and end cannot be the same.")
-            if start > end: raise ValueError("Shift end must be later than shift start.")
+            if start == end:
+                raise ValueError("Shift start and end cannot be the same.")
             
             # Handle night shift (optional)
             night_start = None
@@ -488,10 +489,8 @@ class SettingsPage(QWidget):
                     raise ValueError("If setting night shift, both start and end times must be provided.")
                 night_start = normalize_shift_time(night_start_text)
                 night_end = normalize_shift_time(night_end_text)
-                if night_start == night_end: 
+                if night_start == night_end:
                     raise ValueError("Night shift start and end cannot be the same.")
-                if night_start > night_end: 
-                    raise ValueError("Night shift end must be later than night shift start.")
             
             self.settings_service.set_staff_shift_schedule(user_id, start, end, night_start, night_end)
             username = self.staff_select.currentText()

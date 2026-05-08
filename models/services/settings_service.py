@@ -76,8 +76,6 @@ class SettingsService:
                 end = normalize_shift_time(shift_end_time, "Shift end")
                 if start == end:
                     raise DatabaseError("Shift start and end cannot be the same.")
-                if start > end:
-                    raise DatabaseError("Shift end must be later than shift start.")
             else:
                 raise DatabaseError("Both shift start and end times are required.")
             
@@ -91,8 +89,6 @@ class SettingsService:
                 night_end = normalize_shift_time(night_shift_end_time, "Night shift end")
                 if night_start == night_end:
                     raise DatabaseError("Night shift start and end cannot be the same.")
-                if night_start > night_end:
-                    raise DatabaseError("Night shift end must be later than night shift start.")
             
             self._db.update_user_shift_schedule(user_id, start, end, night_start, night_end)
         else:

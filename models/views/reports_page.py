@@ -1,4 +1,4 @@
-from views.components.modern_table import ModernTable
+from .components.modern_table import ModernTable
 from typing import Dict
 from models.services.report_service import ReportService
 from datetime import datetime, timedelta

@@ -13,9 +13,9 @@ from models.services.settings_service import SettingsService
 from models.services.auth_service import AuthService
 from models.services.report_service import ReportService
 from models.services.announcement_service import AnnouncementService
-from views.main_window import IceTubigSystem
-from views.login_page import LoginPage
-from views.components.native_polish import FadeStackedWidget
+from models.views.main_window import IceTubigSystem
+from models.views.login_page import LoginPage
+from models.views.components.native_polish import FadeStackedWidget
 from styles import apply_app_style
 from responsive import ResponsiveHelper
 

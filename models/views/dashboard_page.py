@@ -7,9 +7,9 @@ from models.sale import Sale
 from models.services.inventory_service import InventoryService
 from models.services.sales_service import SalesService
 from utils import clean_display_text, format_currency, humanize_name, humanize_status, is_admin
-from views.components.modern_table import ModernTable
-from views.components.animated_charts import AnimatedPieChart
-from views.components.loading_widgets import LoadingSpinner
+from .components.modern_table import ModernTable
+from .components.animated_charts import AnimatedPieChart
+from .components.loading_widgets import LoadingSpinner
 
 
 class DailyRevenueBarChart(QWidget):
@@ -87,12 +87,6 @@ class DashboardPage(QWidget):
                 border: 1px solid {self.tokens.get('border', 'rgba(100, 184, 224, 0.35)')};
                 border-radius: 8px;
             }}
-            QLabel[pageTitle="true"] {{
-                color: {self.tokens.get('text_primary', '#EDF6FC')};
-                font-size: 28px;
-                font-weight: 700;
-                background: transparent;
-            }}
             QLabel[sectionLabel="true"] {{
                 color: {self.tokens.get('accent_1', '#64B8E0')};
                 font-size: 12px;
@@ -159,9 +153,6 @@ class DashboardPage(QWidget):
         shadow.setColor(QColor(0, 0, 0, 40))
         widget.setGraphicsEffect(shadow)
 
-    def closeEvent(self, event):
-        self.auto_refresh_timer.stop(); super().closeEvent(event)
-
     def _build_ui(self):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         scroll = QScrollArea(self); scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -216,7 +207,7 @@ class DashboardPage(QWidget):
         self.notifications_table = ModernTable(self.notifications_card,
             columns=("time","event","staff","details","severity"), tokens=self.tokens)
         nl.addWidget(self.notifications_table)
-        if is_admin(self.current_user): root.addWidget(self.notifications_card)
+        root.addWidget(self.notifications_card)
 
         # Sales breakdown
         bd = QFrame(self); bd.setProperty("card", True); self._add_card_shadow(bd); bdl = QVBoxLayout(bd); bdl.setContentsMargins(20, 16, 20, 16)
@@ -287,13 +278,11 @@ class DashboardPage(QWidget):
         yearly = self.sales_service.get_revenue_by_year(5)
         self.breakdown_text.setText(self._format_breakdown(monthly, yearly))
         sales_history = self.sales_service.get_sales_history()
-        if not is_admin(self.current_user):
-            username = getattr(self.current_user, "username", "")
-            sales_history = [s for s in sales_history if s.sold_by_username == username]
+        # Staff and admin will both see the full sales history for design consistency
         self._draw_chart(sales_history, 30)
         self._refresh_data_tables(sales_history)
         self._refresh_pie_charts(summary, sales_history)
-        if is_admin(self.current_user): self._refresh_notifications()
+        self._refresh_notifications()
 
     def _format_breakdown(self, monthly, yearly):
         ml = '\n'.join(f'  {p}   {format_currency(t)}' for p, t in monthly) or '  No monthly data'
@@ -329,7 +318,7 @@ class DashboardPage(QWidget):
     def search(self, query):
         self.recent_sales_table.filter_rows(query)
         self.stock_snapshot_table.filter_rows(query)
-        if is_admin(self.current_user): self.notifications_table.filter_rows(query)
+        self.notifications_table.filter_rows(query)
 
     def _aggregate_daily_sales(self, sales, days=30):
         from datetime import datetime, timedelta

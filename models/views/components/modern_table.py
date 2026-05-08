@@ -73,13 +73,13 @@ class ModernTable(QWidget):
         t = self.tokens
         self.table.setStyleSheet(f"""
             QTableWidget {{
-                background: transparent;
+                background: {t.get('bg_elevated', 'rgba(25, 42, 68, 0.92)')};
                 color: {t.get('text_primary', '#EBF5FB')};
                 gridline-color: transparent;
                 border: 1px solid {t.get('card_border', '#1B4F72')};
                 border-radius: 10px;
                 selection-background-color: transparent;
-                alternate-background-color: transparent;
+                alternate-background-color: rgba(255, 255, 255, 0.04);
                 padding: 2px;
             }}
             QTableWidget::item {{
@@ -134,6 +134,7 @@ class ModernTable(QWidget):
 
         self.table.setUpdatesEnabled(False)
         self.table.setSortingEnabled(False)
+        self.table.setRowCount(0)
         self.table.setRowCount(len(self._data))
         for r_idx, row in enumerate(self._data):
             for c_idx, col in enumerate(self.columns):

@@ -13,13 +13,13 @@ from models.services.auth_service import AuthService
 from models.services.report_service import ReportService
 from models.services.announcement_service import AnnouncementService
 from utils import clean_display_text, humanize_name, humanize_status, is_admin
-from views.dashboard_page import DashboardPage
-from views.sales_page import SalesPage
-from views.settings_page import SettingsPage
-from views.stock_page import StockPage
-from views.reports_page import ReportsPage
-from views.announcements_page import AnnouncementsPage
-from views.components.native_polish import FadeStackedWidget, apply_card_polish
+from .dashboard_page import DashboardPage
+from .sales_page import SalesPage
+from .settings_page import SettingsPage
+from .stock_page import StockPage
+from .reports_page import ReportsPage
+from .announcements_page import AnnouncementsPage
+from .components.native_polish import FadeStackedWidget, apply_card_polish
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _LOGO_PATH = os.path.join(_BASE_DIR, 'images', 'logo.png')
@@ -69,18 +69,17 @@ class IceTubigSystem(QWidget):
             lambda: SettingsPage(self.settings_service, self.auth_service, self.current_user, self._apply_theme, self.tokens, self.page_stack),
         ]
         self.pages = [None] * len(self.page_names)
-        self.current_page_index = 1
+        self.current_page_index = 0
 
-        QTimer.singleShot(10, lambda: self.switch_page(1))
+        QTimer.singleShot(10, lambda: self.switch_page(0))
         self.tick_timer = QTimer(self)
         self.tick_timer.timeout.connect(self._update_stock_countdowns)
         self.tick_timer.start(1000)
 
-        if is_admin(self.current_user):
-            self.notification_timer = QTimer(self)
-            self.notification_timer.timeout.connect(self._refresh_notification_bell)
-            self.notification_timer.start(10000)
-            QTimer.singleShot(250, self._refresh_notification_bell)
+        self.notification_timer = QTimer(self)
+        self.notification_timer.timeout.connect(self._refresh_notification_bell)
+        self.notification_timer.start(10000)
+        QTimer.singleShot(250, self._refresh_notification_bell)
 
     def _build_ui(self):
         # Transparent so parent BackgroundWidget's icy background shows through
@@ -245,25 +244,24 @@ class IceTubigSystem(QWidget):
         topbar_layout.addWidget(self.search_input, 1)
         topbar_layout.addWidget(self.page_status_label)
 
-        if is_admin(self.current_user):
-            self.notification_button = QPushButton(self.content_frame)
-            self.notification_button.setObjectName("notificationBell")
-            self.notification_button.setIcon(qta.icon('fa5s.bell', color=self.tokens['text_secondary']))
-            self.notification_button.setToolTip("Staff activity notifications")
-            self.notification_button.clicked.connect(self._show_notifications)
-            self.notification_button.setStyleSheet(f"""
-                QPushButton#notificationBell {{
-                    min-width: 42px; padding: 8px 10px; border-radius: 20px;
-                    border: 1px solid {self.tokens['border']};
-                    background: {self.tokens['bg_input']};
-                    color: {self.tokens['text_primary']}; font-weight: 700;
-                }}
-                QPushButton#notificationBell:hover {{
-                    border-color: {self.tokens['accent_1']};
-                    background: {self.tokens['bg_elevated']};
-                }}
-            """)
-            topbar_layout.addWidget(self.notification_button)
+        self.notification_button = QPushButton(self.content_frame)
+        self.notification_button.setObjectName("notificationBell")
+        self.notification_button.setIcon(qta.icon('fa5s.bell', color=self.tokens['text_secondary']))
+        self.notification_button.setToolTip("Staff activity notifications")
+        self.notification_button.clicked.connect(self._show_notifications)
+        self.notification_button.setStyleSheet(f"""
+            QPushButton#notificationBell {{
+                min-width: 42px; padding: 8px 10px; border-radius: 20px;
+                border: 1px solid {self.tokens['border']};
+                background: {self.tokens['bg_input']};
+                color: {self.tokens['text_primary']}; font-weight: 700;
+            }}
+            QPushButton#notificationBell:hover {{
+                border-color: {self.tokens['accent_1']};
+                background: {self.tokens['bg_elevated']};
+            }}
+        """)
+        topbar_layout.addWidget(self.notification_button)
 
         topbar_layout.addWidget(profile_button)
         content_layout.addWidget(topbar_frame)
@@ -429,7 +427,7 @@ class IceTubigSystem(QWidget):
             menu.close(); menu.deleteLater(); self.search_menu = None
 
     def _refresh_notification_bell(self):
-        if not is_admin(self.current_user) or not hasattr(self, "notification_button"):
+        if not hasattr(self, "notification_button"):
             return
         try:
             count = self.sales_service.get_unread_admin_notification_count()
@@ -443,7 +441,7 @@ class IceTubigSystem(QWidget):
         except Exception: pass
 
     def _show_notifications(self):
-        if not is_admin(self.current_user): return
+        pass  # Show notifications for everyone
         try:
             notifications = self.sales_service.get_admin_notifications(8)
         except Exception as exc:

@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel,
 import qtawesome as qta
 from models.services.sales_service import SalesService
 from utils import format_currency, friendly_error, humanize_name, humanize_status, is_admin, is_staff
-from views.components.modern_table import ModernTable
+from .components.modern_table import ModernTable
 
 
 class SalesPage(QWidget):
@@ -20,6 +20,7 @@ class SalesPage(QWidget):
         self.setStyleSheet("background:transparent;")
         self._apply_modern_styling()
         self._build_ui()
+        self.refresh()
 
     def _apply_modern_styling(self):
         """Apply modern glassmorphic styling to all cards and components."""
@@ -30,12 +31,6 @@ class SalesPage(QWidget):
                 border: 1px solid {self.tokens.get('card_border', 'rgba(100, 184, 224, 0.25)')};
                 border-radius: 12px;
                 padding: 0px;
-            }}
-            QLabel[pageTitle="true"] {{
-                color: {self.tokens.get('text_primary', '#EDF6FC')};
-                font-size: 28px;
-                font-weight: 700;
-                background: transparent;
             }}
             QLabel[cardTitle="true"] {{
                 color: {self.tokens.get('text_primary', '#EDF6FC')};
@@ -110,7 +105,7 @@ class SalesPage(QWidget):
         self.employee_filter.setMinimumWidth(180)
         left.addWidget(title); left.addWidget(subtitle)
         header.addLayout(left); header.addStretch(); header.addWidget(refresh_btn)
-        if is_admin(self.current_user): header.addWidget(self.employee_filter)
+        header.addWidget(self.employee_filter)
         root.addLayout(header)
 
         # Shift controls
@@ -172,7 +167,7 @@ class SalesPage(QWidget):
         sf_layout.addLayout(sh)
         self.shift_table = ModernTable(self.shift_frame, columns=('employee','shift','sales_count','revenue'), tokens=self.tokens)
         sf_layout.addWidget(self.shift_table)
-        if is_admin(self.current_user): root.addWidget(self.shift_frame, 1)
+        root.addWidget(self.shift_frame, 1)
 
         # Attendance records
         self.attendance_frame = QFrame(self); self.attendance_frame.setProperty("card", True)
@@ -198,7 +193,8 @@ class SalesPage(QWidget):
         return val_label
 
     def refresh(self):
-        schedule = self.sales_service.get_shift_schedule()
+        user_id = getattr(self.current_user, 'user_id', None)
+        schedule = self.sales_service.get_shift_schedule(user_id if is_staff(self.current_user) else None)
         self.shift_schedule_label.setText(f"Time In {schedule['shift_start_time']} \u00b7 Time Out {schedule['shift_end_time']}")
         self._cached_sales = self.sales_service.get_sales_history()
         self._populate_employee_filter(self._cached_sales)
@@ -207,7 +203,7 @@ class SalesPage(QWidget):
         self._refresh_attendance_table()
 
     def _populate_employee_filter(self, sales):
-        if not is_admin(self.current_user): return
+        # Populate employee filter for all roles for UI consistency
         current = self.employee_filter.currentText() if self.employee_filter.count() else "All"
         self.employee_filter.blockSignals(True)
         self.employee_filter.clear(); self.employee_filter.addItem("All")
@@ -217,12 +213,8 @@ class SalesPage(QWidget):
         self.employee_filter.blockSignals(False)
 
     def _apply_sales_filter(self):
-        if is_admin(self.current_user):
-            selected = self.employee_filter.currentText() if self.employee_filter.count() else "All"
-            filtered = self._cached_sales if selected == "All" else [s for s in self._cached_sales if s.sold_by_username == selected]
-        else:
-            username = getattr(self.current_user, "username", "")
-            filtered = [s for s in self._cached_sales if s.sold_by_username == username]
+        selected = self.employee_filter.currentText() if self.employee_filter.count() else "All"
+        filtered = self._cached_sales if selected == "All" else [s for s in self._cached_sales if s.sold_by_username == selected]
         filtered = self._filter_sales_by_query(filtered)
         total_revenue = 0.0; kg_revenue = defaultdict(float); rows = []
         for sale in filtered:
@@ -263,7 +255,7 @@ class SalesPage(QWidget):
         self._apply_sales_filter()
 
     def _refresh_shift_table(self):
-        if not is_admin(self.current_user): return
+        # Allow staff to see the shift table layout
         rows = [{"employee": i["username"], "shift": humanize_name(i["shift"], "No shift"),
                  "sales_count": str(i["sales_count"]), "revenue": format_currency(i['total_revenue'])}
                 for i in self.sales_service.get_employee_shift_summary()]
@@ -271,7 +263,7 @@ class SalesPage(QWidget):
         self.shift_count_label.setText(f"{len(rows)} shift record{'s' if len(rows) != 1 else ''}")
 
     def _refresh_attendance_table(self):
-        user_id = None if is_admin(self.current_user) else getattr(self.current_user, "user_id", None)
+        user_id = None  # Show all attendance records to match admin design
         logs = self.sales_service.get_shift_logs(user_id); self._shift_logs = logs
         rows = [{"_iid": str(l["log_id"]), "employee": l["username"], "date": l["shift_date"],
                  "expected_in": l["expected_in"], "actual_in": l["actual_in"] or "Not recorded",
